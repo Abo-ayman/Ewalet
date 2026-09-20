@@ -1,0 +1,32 @@
+name: ewalet
+description: A Flutter E-Wallet app (Arabic RTL)
+publish_to: "none"
+
+version: 1.0.0+1
+
+environment:
+  sdk: ">=3.0.0 <4.0.0"
+
+dependencies:
+  flutter:
+    sdk: flutter
+
+  # دعم اللغة العربية و RTL
+  flutter_localizations:
+    sdk: flutter
+
+  # إدارة الحالة
+  provider: ^6.0.5
+
+  # خط Tajawal Medium
+  google_fonts: ^6.0.0
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+
+flutter:
+  uses-material-design: true
+
+  assets:
+    - assets/
