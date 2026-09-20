@@ -1,0 +1,43 @@
+name: 🛠 Build ShamCash APK
+
+on:
+  push:
+    branches: [ main, master ]
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      # 1️⃣ جلب الكود من المستودع
+      - name: 📂 Checkout code
+        uses: actions/checkout@v4
+
+      # 2️⃣ إعداد Java (مطلوب لـ Android)
+      - name: ☕ Setup Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      # 3️⃣ إعداد Flutter
+      - name: 🦋 Setup Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+
+      # 4️⃣ تنزيل المكتبات
+      - name: 📥 Get dependencies
+        run: flutter pub get
+
+      # 5️⃣ بناء APK باسم shamcash
+      - name: 🏗 Build ShamCash APK
+        run: flutter build apk --release
+
+      # 6️⃣ رفع ملف APK كـ Artifact
+      - name: 📦 Upload ShamCash APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: shamcash-release-apk
+          path: build/app/outputs/flutter-apk/app-release.apk
