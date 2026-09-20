@@ -1,4 +1,4 @@
-name: ewalet
+name: shamcash
 description: A Flutter E-Wallet app (Arabic RTL)
 publish_to: "none"
 
@@ -11,14 +11,10 @@ dependencies:
   flutter:
     sdk: flutter
 
-  # دعم اللغة العربية و RTL
   flutter_localizations:
     sdk: flutter
 
-  # إدارة الحالة
   provider: ^6.0.5
-
-  # خط Tajawal Medium
   google_fonts: ^6.0.0
 
 dev_dependencies:
@@ -29,4 +25,4 @@ flutter:
   uses-material-design: true
 
   assets:
-    - assets/
+    - assets/icon.png
