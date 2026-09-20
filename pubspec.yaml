@@ -1,8 +1,6 @@
 name: shamcash
-description: A Flutter E-Wallet app (Arabic RTL)
+description: A simple wallet app built manually inside GitHub Codespaces.
 publish_to: "none"
-
-version: 1.0.0+1
 
 environment:
   sdk: ">=3.0.0 <4.0.0"
@@ -10,16 +8,7 @@ environment:
 dependencies:
   flutter:
     sdk: flutter
-
-  flutter_localizations:
-    sdk: flutter
-
-  provider: ^6.0.5
-  google_fonts: ^6.0.0
-
-dev_dependencies:
-  flutter_test:
-    sdk: flutter
+  cupertino_icons: ^1.0.6
 
 flutter:
   uses-material-design: true
