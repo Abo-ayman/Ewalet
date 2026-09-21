@@ -1062,6 +1062,7 @@ class ReceiptPage extends StatefulWidget {
 class _ReceiptPageState extends State<ReceiptPage> {
   static const _exportBlue = Color(0xFF0277BD); // أزرق سماوي داكن
   final GlobalKey _boundaryKey = GlobalKey();
+  final DateTime _createdAt = DateTime.now();
   bool busy = false;
 
   Future<void> _export() async {
@@ -1134,6 +1135,7 @@ class _ReceiptPageState extends State<ReceiptPage> {
                         t: widget.t,
                         ownerName: widget.ownerName,
                         ownAcct: widget.ownAcct,
+                        createdAt: _createdAt,
                       ),
                     ),
                   ),
@@ -1201,12 +1203,14 @@ class ReceiptCard extends StatelessWidget {
   final Transfer t;
   final String ownerName;
   final String ownAcct;
+  final DateTime createdAt;
 
   const ReceiptCard({
     super.key,
     required this.t,
     required this.ownerName,
     required this.ownAcct,
+    required this.createdAt,
   });
 
   static const _ink = Color(0xFF111111);
@@ -1246,6 +1250,9 @@ class ReceiptCard extends StatelessWidget {
     final d = DateTime.parse(t.at);
     final dateStr = '${d.year}-${p2(d.month)}-${p2(d.day)}';
     final timeStr = '${p2(d.hour)}:${p2(d.minute)}:${p2(d.second)}';
+    final createdDate = '${p2(createdAt.day)}/${p2(createdAt.month)}/${createdAt.year}';
+    final createdTime = '${p2(createdAt.hour > 12 ? createdAt.hour - 12 : (createdAt.hour == 0 ? 12 : createdAt.hour))}:${p2(createdAt.minute)}';
+    final createdPeriod = createdAt.hour >= 12 ? 'PM' : 'AM';
     final opNo = t.id.replaceAll('#', '');
     final amountLtr = t.currency != 'SYP';
 
@@ -1357,6 +1364,32 @@ class ReceiptCard extends StatelessWidget {
               _row('الملاحظة:', const SizedBox.shrink()),
               const SizedBox(height: 10),
               Container(height: 4, color: _bar),
+              const SizedBox(height: 10),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.end,
+                crossAxisAlignment: CrossAxisAlignment.center,
+                children: [
+                  Text(
+                    'تم إنشاء الملف عبر ',
+                    style: _s(13),
+                  ),
+                  Text(
+                    'شام كاش',
+                    style: _s(13, FontWeight.w700).copyWith(
+                      color: const Color(0xFF5B79B6),
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 4),
+              Align(
+                alignment: AlignmentDirectional.centerStart,
+                child: Text(
+                  '$createdPeriod $createdTime - $createdDate',
+                  style: _s(12, FontWeight.w500),
+                  textDirection: TextDirection.ltr,
+                ),
+              ),
             ],
           ),
         ],
