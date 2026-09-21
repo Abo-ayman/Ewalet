@@ -407,6 +407,17 @@ class _ShellState extends State<Shell> {
                       Expanded(child: pages[tab]),
                     ],
                   ),
+                  // خلفية صلبة بلون خلفية الشاشة خلف الشريط وزر الباركود بالكامل،
+                  // لتغطية زوايا الشريط/الزر المستديرة ومنع ظهور الحوالات
+                  // المنزلقة تحتهما عند تلك الزوايا.
+                  Positioned(
+                    left: 14,
+                    right: 14,
+                    bottom: 10,
+                    child: IgnorePointer(
+                      child: Container(height: 100, color: kBg),
+                    ),
+                  ),
                   Positioned(
                     left: 14,
                     right: 14,
@@ -529,7 +540,7 @@ class HomePage extends StatelessWidget {
       padding: EdgeInsets.symmetric(horizontal: 18 * k),
       decoration: BoxDecoration(
         color: kGlass,
-        borderRadius: BorderRadius.circular(18 * k),
+        borderRadius: BorderRadius.circular(10), // نفس انحناء شاشة التحويلات
       ),
       child: Row(
         children: [
