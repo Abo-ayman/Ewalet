@@ -326,7 +326,51 @@ class WalletApp extends StatelessWidget {
         textDirection: TextDirection.rtl,
         child: child!,
       ),
-      home: const Shell(),
+      home: const SplashPage(),
+    );
+  }
+}
+
+// ─────────────────────────────────────────────
+// شاشة البداية (Splash) — نفس خلفية التطبيق (kBg) مع اللوجو بالوسط،
+// ثم انتقال بتلاشٍ ناعم إلى الشاشة الرئيسية.
+// ─────────────────────────────────────────────
+class SplashPage extends StatefulWidget {
+  const SplashPage({super.key});
+
+  @override
+  State<SplashPage> createState() => _SplashPageState();
+}
+
+class _SplashPageState extends State<SplashPage> {
+  @override
+  void initState() {
+    super.initState();
+    Future.delayed(const Duration(milliseconds: 1400), () {
+      if (!mounted) return;
+      Navigator.of(context).pushReplacement(
+        PageRouteBuilder(
+          transitionDuration: const Duration(milliseconds: 500),
+          pageBuilder: (_, __, ___) => const Shell(),
+          transitionsBuilder: (_, anim, __, child) =>
+              FadeTransition(opacity: anim, child: child),
+        ),
+      );
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: kBg,
+      body: Center(
+        child: Image.asset(
+          'assets/images/logo.png',
+          width: 140,
+          height: 140,
+          fit: BoxFit.contain,
+        ),
+      ),
     );
   }
 }
