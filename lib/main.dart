@@ -51,13 +51,34 @@ const double kUsdResetThreshold = 10;
 
 const List<String> kCurrencies = ['EUR', 'USD', 'SYP'];
 
-// خط Tajawal بوزن 600 (SemiBold) في كل التطبيق — بين Medium وBold
-TextStyle ts(double size, {Color color = Colors.white}) => TextStyle(
+// أوزان Tajawal: Regular للنصوص، Medium للأزرار والقيم، SemiBold للعناوين والقيم البارزة.
+TextStyle ts(
+  double size, {
+  Color color = Colors.white,
+  FontWeight weight = FontWeight.w400,
+  double? height,
+}) =>
+    TextStyle(
       fontFamily: 'Tajawal',
-      fontWeight: FontWeight.w600,
+      fontWeight: weight,
       fontSize: size,
       color: color,
+      height: height,
     );
+
+TextStyle tsR(double size, {Color color = Colors.white, double? height}) =>
+    ts(size, color: color, weight: FontWeight.w400, height: height);
+
+TextStyle tsM(double size, {Color color = Colors.white, double? height}) =>
+    ts(size, color: color, weight: FontWeight.w500, height: height);
+
+TextStyle tsSB(double size, {Color color = Colors.white, double? height}) =>
+    ts(size, color: color, weight: FontWeight.w600, height: height);
+
+double wp(BuildContext context, double ratio) =>
+    MediaQuery.sizeOf(context).width * ratio;
+double hp(BuildContext context, double ratio) =>
+    MediaQuery.sizeOf(context).height * ratio;
 
 // ─────────────────────────────────────────────
 // دوال مساعدة
@@ -510,27 +531,27 @@ class HomePage extends StatelessWidget {
   }
 
   /// صف "آخر التحويلات": ارتفاع ثابت 64 كما في الصورة المرجعية
-  Widget _recentRow(Transfer t) {
+  Widget _recentRow(BuildContext context, Transfer t) {
     final c = t.incoming ? kGreen : kRed;
     return Container(
-      height: 64,
+      height: hp(context, 0.088),
       width: double.infinity,
-      margin: const EdgeInsets.only(bottom: 13),
-      padding: const EdgeInsets.symmetric(horizontal: 18),
+      margin: EdgeInsets.only(bottom: hp(context, 0.017)),
+      padding: EdgeInsets.symmetric(horizontal: wp(context, 0.021)), 
       decoration: BoxDecoration(
         color: kGlass,
-        borderRadius: BorderRadius.circular(18),
+        borderRadius: BorderRadius.circular(wp(context, 0.021)),
       ),
       child: Row(
         children: [
           Expanded(
             child: Text(t.name,
-                style: ts(17), maxLines: 1, overflow: TextOverflow.ellipsis),
+                style: tsM(17), maxLines: 1, overflow: TextOverflow.ellipsis),
           ),
           const SizedBox(width: 8),
           Text(
             '${t.incoming ? '+ ' : ''}${t.currency} ${money(t.amount)}',
-            style: ts(17, color: c),
+            style: tsM(17, color: c),
             textDirection: TextDirection.ltr,
           ),
           const SizedBox(width: 6),
@@ -548,23 +569,29 @@ class HomePage extends StatelessWidget {
   Widget build(BuildContext context) {
     final recent = wallet.transfers.take(5).toList();
     return ListView(
-      padding: const EdgeInsets.fromLTRB(16, 8, 16, 120),
+       padding: EdgeInsets.fromLTRB(
+         wp(context, 0.041),
+         hp(context, 0.010),
+         wp(context, 0.041),
+         hp(context, 0.078),
+       ),
       children: [
         // الرصيد + عجلة العملات (اسحب للأعلى/الأسفل) + العين
         BalanceHeader(wallet: wallet),
-        const SizedBox(height: 20),
+        SizedBox(height: hp(context, 0.078)),
 
         // الاختصارات + استقبال/إرسال — مربع (الارتفاع = نصف العرض) مثل المرجع
         LayoutBuilder(
           builder: (context, cons) {
-            final side = (cons.maxWidth - 14) / 2;
-            return SizedBox(
-              height: side,
+            final gap = wp(context, 0.039);
+             final actionHeight = hp(context, 0.229);
+             return SizedBox(
+               height: actionHeight,
               child: Row(
                 children: [
                   Expanded(
                     child: Container(
-                      padding: const EdgeInsets.all(10),
+                      padding: EdgeInsets.all(wp(context, 0.0115)),
                       decoration: BoxDecoration(
                         color: kGlass,
                         borderRadius: BorderRadius.circular(26),
@@ -593,7 +620,7 @@ class HomePage extends StatelessWidget {
                       ),
                     ),
                   ),
-                  const SizedBox(width: 14),
+                  SizedBox(width: gap),
                   Expanded(
                     child: Column(
                       children: [
@@ -606,7 +633,7 @@ class HomePage extends StatelessWidget {
                             onTap: onReceive,
                           ),
                         ),
-                        const SizedBox(height: 14),
+                        SizedBox(height: hp(context, 0.0091)),
                         Expanded(
                           child: BigButton(
                             label: 'إرسال',
@@ -624,7 +651,7 @@ class HomePage extends StatelessWidget {
             );
           },
         ),
-        const SizedBox(height: 26),
+        SizedBox(height: hp(context, 0.052)),
 
         // آخر التحويلات
         GestureDetector(
@@ -632,14 +659,14 @@ class HomePage extends StatelessWidget {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text('آخر التحويلات', style: ts(20)),
+              Text('آخر التحويلات', style: tsSB(20)),
               const SizedBox(height: 6),
               Container(width: 60, height: 3, color: kAccent),
             ],
           ),
         ),
         const SizedBox(height: 14),
-        ...recent.map(_recentRow),
+        ...recent.map((t) => _recentRow(context, t)),
       ],
     );
   }
@@ -679,7 +706,7 @@ class _BalanceHeaderState extends State<BalanceHeader> {
       onTap: () => _select(code, dir),
       child: Padding(
         padding: const EdgeInsets.symmetric(vertical: 3),
-        child: Text(code, style: ts(16, color: Colors.white70)),
+        child: Text(code, style: tsR(16, color: Colors.white70)),
       ),
     );
   }
@@ -719,13 +746,13 @@ class _BalanceHeaderState extends State<BalanceHeader> {
                       alignment: AlignmentDirectional.centerStart,
                       child: Text(
                         w.hidden ? '•••••' : money(w.balance),
-                        style: ts(36),
+                        style: tsSB(wp(context, 0.0414).clamp(30.0, 40.0)),
                         textDirection: TextDirection.ltr,
                       ),
                     ),
                   ),
                 ),
-                const SizedBox(width: 12),
+                SizedBox(width: wp(context, 0.014)),
                 AnimatedSwitcher(
                   duration: const Duration(milliseconds: 220),
                   transitionBuilder: (child, anim) => FadeTransition(
@@ -744,7 +771,7 @@ class _BalanceHeaderState extends State<BalanceHeader> {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       _side(prev, -1),
-                      Text(w.currency, style: ts(30)),
+                      Text(w.currency, style: tsM(wp(context, 0.0345).clamp(26.0, 34.0))),
                       _side(next, 1),
                     ],
                   ),
@@ -799,9 +826,9 @@ class QuickTile extends StatelessWidget {
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(icon, color: Colors.white, size: 34),
+            Icon(icon, color: Colors.white, size: wp(context, 0.039)),
             const SizedBox(height: 6),
-            Text(label, style: ts(13)),
+            Text(label, style: tsR(13)),
           ],
         ),
       ),
@@ -905,13 +932,13 @@ class BigButton extends StatelessWidget {
           end: Alignment.centerRight,
           colors: gradient,
         ),
-        borderRadius: BorderRadius.circular(24),
+        borderRadius: BorderRadius.circular(wp(context, 0.028)),
       ),
       child: Material(
         color: Colors.transparent,
-        borderRadius: BorderRadius.circular(24),
+        borderRadius: BorderRadius.circular(wp(context, 0.028)),
         child: InkWell(
-          borderRadius: BorderRadius.circular(24),
+          borderRadius: BorderRadius.circular(wp(context, 0.028)),
           onTap: onTap,
           child: Center(
             child: Row(
@@ -919,7 +946,7 @@ class BigButton extends StatelessWidget {
               // يميناً والأيقونة يساراً تماماً كما في التصميم المرجعي.
               mainAxisSize: MainAxisSize.min,
               children: [
-                Text(label, style: ts(20, color: ink)),
+                Text(label, style: tsM(20, color: ink)),
                 const SizedBox(width: 14),
                 ActionArrow(angle: arrowAngle, color: ink),
               ],
@@ -952,9 +979,9 @@ class TransfersPage extends StatelessWidget {
           children: [
             Row(
               children: [
-                Text('آخر التحويلات', style: ts(22)),
+                Text('آخر التحويلات', style: tsSB(22)),
                 const Spacer(),
-                Text('متقدم', style: ts(16, color: kAccent)),
+                Text('متقدم', style: tsM(16, color: kAccent)),
               ],
             ),
             const SizedBox(height: 12),
@@ -963,7 +990,7 @@ class TransfersPage extends StatelessWidget {
                 const Icon(Icons.info_outline_rounded,
                     color: Colors.white, size: 22),
                 const SizedBox(width: 8),
-                Text('اضغط مطولاً لعرض الوصل', style: ts(14)),
+                Text('اضغط مطولاً لعرض الوصل', style: tsR(14)),
               ],
             ),
             const SizedBox(height: 14),
@@ -1005,13 +1032,13 @@ class TransfersPage extends StatelessWidget {
                         mainAxisAlignment: MainAxisAlignment.center,
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Text(t.name, style: ts(18).copyWith(height: 1.2)),
+                          Text(t.name, style: tsM(18, height: 1.2)),
                           const SizedBox(height: 4),
                           // المستقبَلة: أخضر مع (+)، والمرسلة: أحمر مع (-)
                           Text(
                             '${t.incoming ? '+' : '-'} '
                             '${amountLabel(t.amount, t.currency)}',
-                            style: ts(19, color: color).copyWith(height: 1.2),
+                            style: tsM(19, color: color, height: 1.2),
                           ),
                         ],
                       ),
@@ -1021,11 +1048,11 @@ class TransfersPage extends StatelessWidget {
                         crossAxisAlignment: CrossAxisAlignment.end,
                         children: [
                           Text(t.id,
-                              style: ts(15).copyWith(height: 1.2),
+                              style: tsR(15, height: 1.2),
                               textDirection: TextDirection.ltr),
                           const SizedBox(height: 6),
                           Text(fmtDate(t.at),
-                              style: ts(14).copyWith(height: 1.2),
+                              style: tsR(14, height: 1.2),
                               textDirection: TextDirection.ltr),
                         ],
                       ),
@@ -1117,7 +1144,7 @@ class _ReceiptPageState extends State<ReceiptPage> {
                       onPressed: () => Navigator.of(context).pop(),
                       icon: const Icon(Icons.arrow_back_rounded, color: ink),
                     ),
-                    Text('الوصل', style: ts(18, color: ink)),
+                    Text('الوصل', style: tsM(18, color: ink)),
                   ],
                 ),
               ),
@@ -1128,7 +1155,7 @@ class _ReceiptPageState extends State<ReceiptPage> {
                   fit: BoxFit.scaleDown,
                   alignment: Alignment.topCenter,
                   child: SizedBox(
-                    width: size.width - 32,
+                    width: min(size.width - 8, (size.width - 32) * 1.10),
                     child: RepaintBoundary(
                       key: _boundaryKey,
                       child: ReceiptCard(
@@ -1165,7 +1192,7 @@ class _ReceiptPageState extends State<ReceiptPage> {
                                 strokeWidth: 2, color: Colors.white),
                           )
                         : const Icon(Icons.share_rounded),
-                    label: Text('تصدير', style: ts(18)),
+                    label: Text('تصدير', style: tsM(18)),
                   ),
                 ),
               ),
@@ -1261,7 +1288,7 @@ class ReceiptCard extends StatelessWidget {
         color: Colors.white,
         borderRadius: BorderRadius.circular(14),
       ),
-      padding: const EdgeInsets.fromLTRB(16, 16, 16, 16),
+      padding: const EdgeInsets.fromLTRB(14, 14, 14, 14),
       child: Stack(
         children: [
           Positioned.fill(
@@ -1286,20 +1313,15 @@ class ReceiptCard extends StatelessWidget {
               Row(
                 crossAxisAlignment: CrossAxisAlignment.center,
                 children: [
-                  Expanded(
-                    child: Align(
-                      alignment: AlignmentDirectional.centerEnd,
-                      child: Image.asset(
-                        'assets/images/logo.png',
-                        width: 48,
-                        height: 48,
-                        fit: BoxFit.contain,
-                        filterQuality: FilterQuality.high,
-                      ),
-                    ),
+                  Text('شام كاش', style: _s(22, FontWeight.w600)),
+                  const Spacer(),
+                  Image.asset(
+                    'assets/images/logo.png',
+                    width: 48,
+                    height: 48,
+                    fit: BoxFit.contain,
+                    filterQuality: FilterQuality.high,
                   ),
-                  const SizedBox(width: 8),
-                  Text('شام كاش', style: _s(22, FontWeight.w700)),
                 ],
               ),
               const SizedBox(height: 4),
@@ -1313,7 +1335,7 @@ class ReceiptCard extends StatelessWidget {
                       TextSpan(text: 'العملية ', style: _s(15)),
                       TextSpan(
                         text: t.incoming ? 'استقبال' : 'إرسال',
-                        style: _s(15, FontWeight.w700),
+                        style: _s(15, FontWeight.w600),
                       ),
                       TextSpan(text: ' - رقم ', style: _s(15)),
                       TextSpan(text: opNo, style: _s(15, FontWeight.w500)),
@@ -1337,7 +1359,7 @@ class ReceiptCard extends StatelessWidget {
                 ),
               ),
               _row('اسم المرسل:',
-                  Text(senderName, style: _s(15, FontWeight.w700))),
+                  Text(senderName, style: _s(15, FontWeight.w600))),
               _row(
                 'حساب المرسل:',
                 Text(maskAcct(senderAcct),
@@ -1345,7 +1367,7 @@ class ReceiptCard extends StatelessWidget {
                     textDirection: TextDirection.ltr),
               ),
               _row('اسم المستلم:',
-                  Text(receiverName, style: _s(15, FontWeight.w700))),
+                  Text(receiverName, style: _s(15, FontWeight.w600))),
               _row(
                 'حساب المستلم:',
                 Text(maskAcct(receiverAcct),
@@ -1375,7 +1397,7 @@ class ReceiptCard extends StatelessWidget {
                   ),
                   Text(
                     'شام كاش',
-                    style: _s(13, FontWeight.w700).copyWith(
+                    style: _s(13, FontWeight.w600).copyWith(
                       color: const Color(0xFF5B79B6),
                     ),
                   ),
