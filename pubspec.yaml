@@ -11,6 +11,10 @@ dependencies:
     sdk: flutter
   shared_preferences: ^2.2.3
   mobile_scanner: ^5.2.3
+  # الوصل PDF ومشاركته (واتساب وغيره)
+  pdf: ^3.11.1
+  path_provider: ^2.1.4
+  share_plus: ^10.1.4
 
 dev_dependencies:
   flutter_test:
@@ -20,26 +24,17 @@ dev_dependencies:
 flutter:
   uses-material-design: true
 
+  assets:
+    - assets/images/arrow.png
+
+  # نعرّف فقط الأوزان المستخدمة فعلاً (400 / 500 / 700) — أي ملف خط ناقص
+  # أو باسم مختلف (Linux حسّاس لحالة الأحرف) يُفشل البناء كله.
   fonts:
     - family: Tajawal
       fonts:
-        - asset: assets/fonts/Tajawal-ExtraLight.ttf
-          weight: 200
-        - asset: assets/fonts/Tajawal-Light.ttf
-          weight: 300
         - asset: assets/fonts/Tajawal-Regular.ttf
           weight: 400
         - asset: assets/fonts/Tajawal-Medium.ttf
           weight: 500
         - asset: assets/fonts/Tajawal-Bold.ttf
           weight: 700
-        - asset: assets/fonts/Tajawal-ExtraBold.ttf
-          weight: 800
-        - asset: assets/fonts/Tajawal-Black.ttf
-          weight: 900
-        # كل أوزان الخط الآن مسجّلة، فـ FontWeight.w500 بدالة ts() (main.dart)
-        # بيعرض فعلياً خط Tajawal Medium وليس Regular.
-
-  # فعّل هذا عند إضافة صورتك الخاصة للأفاتار
-  # assets:
-  #   - assets/images/
