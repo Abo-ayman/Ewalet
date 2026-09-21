@@ -38,7 +38,7 @@ const kWhatsapp = Color(0xFF25D366);
 /// مسار صورتك الخاصة للأفاتار (أعلى اليمين).
 /// اتركه فارغاً لاستخدام الأيقونة الافتراضية، وعند الانتهاء ضع مثلاً:
 /// 'assets/images/avatar.png' (وفعّل قسم assets في pubspec.yaml)
-const String kAvatarAsset = '';
+const String kAvatarAsset = 'assets/images/logo.png';
 
 const Map<String, double> kInitialBalances = {
   'USD': 433.0,
@@ -418,7 +418,15 @@ class ProfileAvatar extends StatelessWidget {
         color: kGlassStrong,
       ),
       child: kAvatarAsset.isNotEmpty
-          ? Image.asset(kAvatarAsset, fit: BoxFit.cover)
+          // الشعار كاملاً داخل الدائرة (بدون قص) مع هامش صغير
+          ? Padding(
+              padding: const EdgeInsets.all(8),
+              child: Image.asset(
+                kAvatarAsset,
+                fit: BoxFit.contain,
+                filterQuality: FilterQuality.high,
+              ),
+            )
           : const Icon(Icons.person_rounded, color: Colors.white, size: 28),
     );
   }
