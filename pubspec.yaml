@@ -27,7 +27,7 @@ flutter:
   assets:
     - assets/images/arrow.png
 
-  # نعرّف فقط الأوزان المستخدمة فعلاً (400 / 500 / 700) — أي ملف خط ناقص
+  # نعرّف فقط الأوزان المستخدمة فعلاً (400 / 500 / 600 / 700) — أي ملف خط ناقص
   # أو باسم مختلف (Linux حسّاس لحالة الأحرف) يُفشل البناء كله.
   fonts:
     - family: Tajawal
@@ -36,5 +36,7 @@ flutter:
           weight: 400
         - asset: assets/fonts/Tajawal-Medium.ttf
           weight: 500
+        - asset: assets/fonts/Tajawal-SemiBold.ttf
+          weight: 600
         - asset: assets/fonts/Tajawal-Bold.ttf
           weight: 700
