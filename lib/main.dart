@@ -548,99 +548,113 @@ class HomePage extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final recent = wallet.transfers.take(5).toList();
-    return ListView(
-      padding: const EdgeInsets.fromLTRB(16, 8, 16, 120),
+    return Column(
       children: [
-        // الرصيد + عجلة العملات (اسحب للأعلى/الأسفل) + العين
-        BalanceHeader(wallet: wallet),
-        const SizedBox(height: 20),
+        // النصف العلوي ثابت (الرصيد + الاختصارات + عنوان "آخر التحويلات")
+        Padding(
+          padding: const EdgeInsets.fromLTRB(16, 8, 16, 0),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              // الرصيد + عجلة العملات (اسحب للأعلى/الأسفل) + العين
+              BalanceHeader(wallet: wallet),
+              const SizedBox(height: 20),
 
-        // الاختصارات + استقبال/إرسال — مربع (الارتفاع = نصف العرض) مثل المرجع
-        LayoutBuilder(
-          builder: (context, cons) {
-            final side = (cons.maxWidth - 14) / 2;
-            return SizedBox(
-              height: side,
-              child: Row(
-                children: [
-                  Expanded(
-                    child: Container(
-                      padding: const EdgeInsets.all(10),
-                      decoration: BoxDecoration(
-                        color: kGlass,
-                        borderRadius: BorderRadius.circular(26),
-                      ),
-                      child: GridView.count(
-                        crossAxisCount: 2,
-                        mainAxisSpacing: 10,
-                        crossAxisSpacing: 10,
-                        padding: EdgeInsets.zero,
-                        physics: const NeverScrollableScrollPhysics(),
-                        children: [
-                          QuickTile(
-                              icon: Icons.bookmark_rounded,
-                              label: 'خدماتي',
-                              onTap: () => _soon(context)),
-                          QuickTile(
-                              icon: Icons.layers_rounded,
-                              label: 'مدفوعات',
-                              onTap: () => _soon(context)),
-                          QuickTile(
-                              icon: Icons.receipt_long_rounded,
-                              label: 'فواتير',
-                              onTap: () => _soon(context)),
-                          MoreTile(onTap: () => _soon(context)),
-                        ],
-                      ),
-                    ),
-                  ),
-                  const SizedBox(width: 14),
-                  Expanded(
-                    child: Column(
+              // الاختصارات + استقبال/إرسال — مربع (الارتفاع = نصف العرض) مثل المرجع
+              LayoutBuilder(
+                builder: (context, cons) {
+                  final side = (cons.maxWidth - 14) / 2;
+                  return SizedBox(
+                    height: side,
+                    child: Row(
                       children: [
                         Expanded(
-                          child: BigButton(
-                            label: 'استقبال',
-                            arrowAngle: -pi / 4, // السهم لأسفل اليسار
-                            ink: kReceiveInk,
-                            gradient: kTealGradient,
-                            onTap: onReceive,
+                          child: Container(
+                            padding: const EdgeInsets.all(10),
+                            decoration: BoxDecoration(
+                              color: kGlass,
+                              borderRadius: BorderRadius.circular(26),
+                            ),
+                            child: GridView.count(
+                              crossAxisCount: 2,
+                              mainAxisSpacing: 10,
+                              crossAxisSpacing: 10,
+                              padding: EdgeInsets.zero,
+                              physics: const NeverScrollableScrollPhysics(),
+                              children: [
+                                QuickTile(
+                                    icon: Icons.bookmark_rounded,
+                                    label: 'خدماتي',
+                                    onTap: () => _soon(context)),
+                                QuickTile(
+                                    icon: Icons.layers_rounded,
+                                    label: 'مدفوعات',
+                                    onTap: () => _soon(context)),
+                                QuickTile(
+                                    icon: Icons.receipt_long_rounded,
+                                    label: 'فواتير',
+                                    onTap: () => _soon(context)),
+                                MoreTile(onTap: () => _soon(context)),
+                              ],
+                            ),
                           ),
                         ),
-                        const SizedBox(height: 14),
+                        const SizedBox(width: 14),
                         Expanded(
-                          child: BigButton(
-                            label: 'إرسال',
-                            arrowAngle: 3 * pi / 4, // السهم لأعلى اليمين
-                            ink: kSendInk,
-                            gradient: kPurpleGradient,
-                            onTap: onSend,
+                          child: Column(
+                            children: [
+                              Expanded(
+                                child: BigButton(
+                                  label: 'استقبال',
+                                  arrowAngle: -pi / 4, // السهم لأسفل اليسار
+                                  ink: kReceiveInk,
+                                  gradient: kTealGradient,
+                                  onTap: onReceive,
+                                ),
+                              ),
+                              const SizedBox(height: 14),
+                              Expanded(
+                                child: BigButton(
+                                  label: 'إرسال',
+                                  arrowAngle: 3 * pi / 4, // السهم لأعلى اليمين
+                                  ink: kSendInk,
+                                  gradient: kPurpleGradient,
+                                  onTap: onSend,
+                                ),
+                              ),
+                            ],
                           ),
                         ),
                       ],
                     ),
-                  ),
-                ],
+                  );
+                },
               ),
-            );
-          },
-        ),
-        const SizedBox(height: 26),
+              const SizedBox(height: 26),
 
-        // آخر التحويلات
-        GestureDetector(
-          onTap: onSeeAll,
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text('آخر التحويلات', style: ts(20)),
-              const SizedBox(height: 6),
-              Container(width: 60, height: 3, color: kAccent),
+              // آخر التحويلات
+              GestureDetector(
+                onTap: onSeeAll,
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text('آخر التحويلات', style: ts(20)),
+                    const SizedBox(height: 6),
+                    Container(width: 60, height: 3, color: kAccent),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 14),
             ],
           ),
         ),
-        const SizedBox(height: 14),
-        ...recent.map(_recentRow),
+        // آخر التحويلات فقط هي القابلة للتمرير
+        Expanded(
+          child: ListView(
+            padding: const EdgeInsets.fromLTRB(16, 0, 16, 120),
+            children: recent.map(_recentRow).toList(),
+          ),
+        ),
       ],
     );
   }
