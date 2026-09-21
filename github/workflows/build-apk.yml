@@ -1,0 +1,95 @@
+name: Build APK
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      # يصلح خطأ شائع جداً على GitHub Actions: git يرفض التعامل مع مجلد
+      # المستودع بحجة "dubious ownership"، وهذا بيخلي أي أمر بعده (متل
+      # flutter create اللي بينشئ مجلد android) يفشل بشكل غامض.
+      - name: Fix git ownership
+        run: git config --global --add safe.directory "$GITHUB_WORKSPACE"
+
+      - name: Setup Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - name: Setup Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          cache: true
+
+      - name: Flutter doctor
+        run: flutter doctor -v
+
+      # المشروع ما فيه مجلد android، فنولّده هنا مع حماية ملفاتنا من الاستبدال
+      - name: Generate android folder
+        run: |
+          cp lib/main.dart /tmp/main.dart
+          cp pubspec.yaml /tmp/pubspec.yaml
+          flutter create --platforms=android --project-name wallet_app --org com.example .
+          cp /tmp/main.dart lib/main.dart
+          cp /tmp/pubspec.yaml pubspec.yaml
+          rm -rf test
+
+      # تحقّق فعلي إنه مجلد android انصنع فعلاً — إذا لأ، الخطوة بتفشل هون
+      # برسالة واضحة بدل ما تنكسر خطوات لاحقة بأخطاء غامضة عن ملفات ناقصة.
+      - name: Verify android folder exists
+        run: |
+          if [ ! -f android/app/src/main/AndroidManifest.xml ]; then
+            echo "::error::فشل إنشاء مجلد android — راجع لوج خطوة Generate android folder فوق"
+            exit 1
+          fi
+          echo "android folder OK"
+
+      - name: Add camera permission
+        run: |
+          sed -i 's#<application#<uses-permission android:name="android.permission.CAMERA"/>\n    <application#' android/app/src/main/AndroidManifest.xml
+          grep -n "CAMERA" android/app/src/main/AndroidManifest.xml
+
+      # يقلّل حجم مكتبة قراءة الباركود (mobile_scanner) عدة ميغابايتات:
+      # بدل تضمين محرك MLKit كاملاً داخل الـ APK، يُنزَّل عبر Google Play
+      # Services أول مرة تُستخدم فيها الكاميرا (يتطلب إنترنت حينها فقط).
+      - name: Shrink mobile_scanner (unbundled MLKit)
+        run: |
+          echo "dev.steenbakker.mobile_scanner.useUnbundled=true" >> android/gradle.properties
+
+      - name: Get packages
+        run: flutter pub get
+
+      # السبب الأكبر لثقل الـ APK هو أنه "شامل" (fat APK) يحوي أربع نسخ من
+      # المكتبات الأصلية لأربع معماريات مختلفة معاً. بما أن كل الهواتف
+      # الحديثة (منذ ~2017) هي arm64، نبني لهذه المعمارية فقط فيصغر الحجم
+      # كثيراً بدون أي فرق يُلاحظ على هاتفك.
+      - name: Build release APK (arm64 only)
+        run: flutter build apk --release --target-platform android-arm64
+
+      # طريقة 1: Artifact (يتنزل كملف zip)
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: wallet-apk
+          path: build/app/outputs/flutter-apk/app-release.apk
+
+      # طريقة 2: Release (رابط مباشر للـ APK بدون zip)
+      - name: Publish release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: build-${{ github.run_number }}
+          name: Build ${{ github.run_number }}
+          prerelease: true
+          files: build/app/outputs/flutter-apk/app-release.apk
