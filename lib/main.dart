@@ -62,6 +62,10 @@ TextStyle ts(double size, {Color color = Colors.white}) => TextStyle(
       color: color,
     );
 
+/// نفس ts لكن بوزن 400 (يُستخدم في شاشة التحويلات)
+TextStyle ts400(double size, {Color color = Colors.white}) =>
+    ts(size, color: color).copyWith(fontWeight: FontWeight.w400);
+
 // ─────────────────────────────────────────────
 // دوال مساعدة
 // ─────────────────────────────────────────────
@@ -380,9 +384,12 @@ class _ShellState extends State<Shell> {
                 children: [
                   Positioned.fill(
                     child: IgnorePointer(
-                      child: Center(
+                      // y = -0.6 → مركز الشعار عند 20٪ من الأعلى (داخل الربع الأول)
+                      // (-1 أعلى الشاشة، 0 الوسط، -0.5 = ربع الارتفاع)
+                      child: Align(
+                        alignment: const Alignment(0, -0.6),
                         child: Opacity(
-                          opacity: 0.10,
+                          opacity: 0.15,
                           child: Image.asset(
                             'assets/images/logo_watermark.png',
                             width: 280,
@@ -514,40 +521,37 @@ class HomePage extends StatelessWidget {
 
   /// صف "آخر التحويلات": ارتفاع ثابت 64 كما في الصورة المرجعية
   Widget _recentRow(Transfer t) {
-    const k = 0.95; // تصغير 5٪
+    const k = 0.95; // تصغير 5٪ (الارتفاع والخط) — العرض يطابق الشريط السفلي
     final c = t.incoming ? kGreen : kSendRed;
-    return FractionallySizedBox(
-      widthFactor: k,
-      child: Container(
-        height: 64 * k,
-        margin: EdgeInsets.only(bottom: 13 * k),
-        padding: EdgeInsets.symmetric(horizontal: 18 * k),
-        decoration: BoxDecoration(
-          color: kGlass,
-          borderRadius: BorderRadius.circular(18 * k),
-        ),
-        child: Row(
-          children: [
-            Expanded(
-              child: Text(t.name,
-                  style: ts(17 * k),
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis),
-            ),
-            SizedBox(width: 8 * k),
-            Text(
-              '${t.incoming ? '+ ' : ''}${t.currency} ${money(t.amount)}',
-              style: ts(17 * k, color: c),
-              textDirection: TextDirection.ltr,
-            ),
-            SizedBox(width: 6 * k),
-            Icon(
-              t.incoming ? Icons.download_rounded : Icons.upload_rounded,
-              color: c,
-              size: 22 * k,
-            ),
-          ],
-        ),
+    return Container(
+      height: 64 * k,
+      margin: EdgeInsets.only(bottom: 13 * k),
+      padding: EdgeInsets.symmetric(horizontal: 18 * k),
+      decoration: BoxDecoration(
+        color: kGlass,
+        borderRadius: BorderRadius.circular(18 * k),
+      ),
+      child: Row(
+        children: [
+          Expanded(
+            child: Text(t.name,
+                style: ts(17 * k),
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis),
+          ),
+          SizedBox(width: 8 * k),
+          Text(
+            '${t.currency} ${money(t.amount)}',
+            style: ts(17 * k, color: c),
+            textDirection: TextDirection.ltr,
+          ),
+          SizedBox(width: 6 * k),
+          Icon(
+            t.incoming ? Icons.download_rounded : Icons.upload_rounded,
+            color: c,
+            size: 22 * k,
+          ),
+        ],
       ),
     );
   }
@@ -662,7 +666,8 @@ class HomePage extends StatelessWidget {
         // آخر التحويلات فقط هي القابلة للتمرير
         Expanded(
           child: ListView(
-            padding: const EdgeInsets.fromLTRB(16, 0, 16, 120),
+            // 14 من كل جهة = نفس هامش الشريط السفلي (left/right: 14 في Shell)
+            padding: const EdgeInsets.fromLTRB(14, 0, 14, 120),
             children: recent.map(_recentRow).toList(),
           ),
         ),
@@ -697,6 +702,34 @@ class _BalanceHeaderState extends State<BalanceHeader> {
     final n = kCurrencies.length;
     final i = kCurrencies.indexOf(widget.wallet.currency);
     _select(kCurrencies[(i + step + n) % n], step);
+  }
+
+  /// انزلاق سلس: العنصر الجديد يدخل من جهة السحب والقديم يخرج للجهة المعاكسة
+  /// (مع تلاشي ومنحنى ناعم). يُستخدم للعجلة وللرصيد معاً ليتحركا بتناغم.
+  Widget _slider(String code, Widget child, {required double shift}) {
+    return AnimatedSwitcher(
+      duration: const Duration(milliseconds: 320),
+      switchInCurve: Curves.easeOutCubic,
+      switchOutCurve: Curves.easeInCubic,
+      layoutBuilder: (current, previous) => Stack(
+        alignment: AlignmentDirectional.centerStart,
+        clipBehavior: Clip.none,
+        children: [...previous, if (current != null) current],
+      ),
+      transitionBuilder: (c, anim) {
+        final incoming = c.key == ValueKey<String>(code);
+        final begin = Offset(0, (incoming ? _dir : -_dir) * shift);
+        return FadeTransition(
+          opacity: anim,
+          child: SlideTransition(
+            position:
+                Tween<Offset>(begin: begin, end: Offset.zero).animate(anim),
+            child: c,
+          ),
+        );
+      },
+      child: KeyedSubtree(key: ValueKey<String>(code), child: child),
+    );
   }
 
   Widget _side(String code, int dir) {
@@ -740,32 +773,25 @@ class _BalanceHeaderState extends State<BalanceHeader> {
                 Expanded(
                   child: Align(
                     alignment: AlignmentDirectional.centerStart,
-                    child: FittedBox(
-                      fit: BoxFit.scaleDown,
-                      alignment: AlignmentDirectional.centerStart,
-                      child: Text(
-                        w.hidden ? '•••••' : money(w.balance),
-                        style: ts(28.8), // 36 ← -20٪
-                        textDirection: TextDirection.ltr,
+                    child: _slider(
+                      w.currency,
+                      FittedBox(
+                        fit: BoxFit.scaleDown,
+                        alignment: AlignmentDirectional.centerStart,
+                        child: Text(
+                          w.hidden ? '•••••' : money(w.balance),
+                          style: ts(28.8), // 36 ← -20٪
+                          textDirection: TextDirection.ltr,
+                        ),
                       ),
+                      shift: 0.5,
                     ),
                   ),
                 ),
                 const SizedBox(width: 12),
-                AnimatedSwitcher(
-                  duration: const Duration(milliseconds: 220),
-                  transitionBuilder: (child, anim) => FadeTransition(
-                    opacity: anim,
-                    child: SlideTransition(
-                      position: Tween<Offset>(
-                        begin: Offset(0, 0.25 * _dir),
-                        end: Offset.zero,
-                      ).animate(anim),
-                      child: child,
-                    ),
-                  ),
-                  child: Column(
-                    key: ValueKey(w.currency),
+                _slider(
+                  w.currency,
+                  Column(
                     mainAxisSize: MainAxisSize.min,
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
@@ -774,6 +800,7 @@ class _BalanceHeaderState extends State<BalanceHeader> {
                       _side(next, 1),
                     ],
                   ),
+                  shift: 0.34,
                 ),
               ],
             ),
@@ -1023,25 +1050,30 @@ class TransfersPage extends StatelessWidget {
                   padding: const EdgeInsets.symmetric(horizontal: 18),
                   decoration: BoxDecoration(
                     color: kGlass,
-                    borderRadius: BorderRadius.circular(22),
+                    borderRadius: BorderRadius.circular(10),
                   ),
                   child: Row(
                     children: [
-                      Column(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(t.name, style: ts(18).copyWith(height: 1.2)),
-                          const SizedBox(height: 4),
-                          // المستقبَلة: أخضر مع (+)، والمرسلة: أحمر مع (-)
-                          Text(
-                            '${t.incoming ? '+' : '-'} '
-                            '${amountLabel(t.amount, t.currency)}',
-                            style: ts(19, color: color).copyWith(height: 1.2),
-                          ),
-                        ],
+                      Expanded(
+                        child: Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(t.name,
+                                style: ts400(18).copyWith(height: 1.2), // وزن 400 للاسم فقط
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis),
+                            const SizedBox(height: 4),
+                            // المستقبَلة: أخضر مع (+)، والمرسلة: أحمر مع (-)
+                            Text(
+                              '${t.incoming ? '+' : '-'} '
+                              '${amountLabel(t.amount, t.currency)}',
+                              style: ts(19, color: color).copyWith(height: 1.2),
+                            ),
+                          ],
+                        ),
                       ),
-                      const Spacer(),
+                      const SizedBox(width: 12),
                       Column(
                         mainAxisAlignment: MainAxisAlignment.center,
                         crossAxisAlignment: CrossAxisAlignment.end,
@@ -1296,11 +1328,11 @@ class ReceiptCard extends StatelessWidget {
             child: IgnorePointer(
               child: Center(
                 child: Opacity(
-                  opacity: 0.10,
+                  opacity: 0.30,
                   child: Image.asset(
-                    'assets/images/logo_watermark.png',
-                    width: 190,
-                    height: 170,
+                    'assets/images/logo.png', // نفس لوجو الرأس، كعلامة مائية بالوسط
+                    width: 220,
+                    height: 220,
                     fit: BoxFit.contain,
                   ),
                 ),
@@ -1312,19 +1344,17 @@ class ReceiptCard extends StatelessWidget {
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
               Row(
+                textDirection: TextDirection.rtl,
+                mainAxisAlignment: MainAxisAlignment.start,
                 crossAxisAlignment: CrossAxisAlignment.center,
+                // الشعار والكلمة بجانبه معاً جهة اليمين
                 children: [
-                  Expanded(
-                    child: Align(
-                      alignment: AlignmentDirectional.centerEnd,
-                      child: Image.asset(
-                        'assets/images/logo.png',
-                        width: 48,
-                        height: 48,
-                        fit: BoxFit.contain,
-                        filterQuality: FilterQuality.high,
-                      ),
-                    ),
+                  Image.asset(
+                    'assets/images/logo.png',
+                    width: 48,
+                    height: 48,
+                    fit: BoxFit.contain,
+                    filterQuality: FilterQuality.high,
                   ),
                   const SizedBox(width: 8),
                   Text('شام كاش', style: _s(22, FontWeight.w700)),
@@ -1394,7 +1424,8 @@ class ReceiptCard extends StatelessWidget {
               Container(height: 4, color: _bar),
               const SizedBox(height: 10),
               Row(
-                mainAxisAlignment: MainAxisAlignment.end,
+                textDirection: TextDirection.rtl,
+                mainAxisAlignment: MainAxisAlignment.start,
                 crossAxisAlignment: CrossAxisAlignment.center,
                 children: [
                   Text(
