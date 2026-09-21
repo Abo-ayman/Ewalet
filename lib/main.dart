@@ -20,6 +20,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 const kBg = Color(0xFF0D1225);
 const kAccent = Color(0xFF4C8DF6);
 const kRed = Color(0xFF6B1F2A);
+const kSendRed = Color(0xFF9C2A57); // أحمر الحوالات الصادرة (مطابق للصورة المرجعية)
 const kTeal = Color(0xFF5B98A4);
 const kPurple = Color(0xFF7D609E);
 // ألوان زري استقبال/إرسال — مقاسة من الصورة المرجعية (من اليسار لليمين)
@@ -511,7 +512,7 @@ class HomePage extends StatelessWidget {
 
   /// صف "آخر التحويلات": ارتفاع ثابت 64 كما في الصورة المرجعية
   Widget _recentRow(Transfer t) {
-    final c = t.incoming ? kGreen : kRed;
+    final c = t.incoming ? kGreen : kSendRed;
     return Container(
       height: 64,
       width: double.infinity,
@@ -678,8 +679,8 @@ class _BalanceHeaderState extends State<BalanceHeader> {
       behavior: HitTestBehavior.opaque,
       onTap: () => _select(code, dir),
       child: Padding(
-        padding: const EdgeInsets.symmetric(vertical: 3),
-        child: Text(code, style: ts(16, color: Colors.white70)),
+        padding: const EdgeInsets.symmetric(vertical: 2.4), // 3 ← -20٪
+        child: Text(code, style: ts(12.8, color: Colors.white70)), // 16 ← -20٪
       ),
     );
   }
@@ -719,7 +720,7 @@ class _BalanceHeaderState extends State<BalanceHeader> {
                       alignment: AlignmentDirectional.centerStart,
                       child: Text(
                         w.hidden ? '•••••' : money(w.balance),
-                        style: ts(36),
+                        style: ts(28.8), // 36 ← -20٪
                         textDirection: TextDirection.ltr,
                       ),
                     ),
@@ -744,7 +745,7 @@ class _BalanceHeaderState extends State<BalanceHeader> {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       _side(prev, -1),
-                      Text(w.currency, style: ts(30)),
+                      Text(w.currency, style: ts(24)), // 30 ← -20٪
                       _side(next, 1),
                     ],
                   ),
@@ -976,7 +977,7 @@ class TransfersPage extends StatelessWidget {
                 ),
               ),
             ...wallet.transfers.map((t) {
-              final color = t.incoming ? kGreen : kRed;
+              final color = t.incoming ? kGreen : kSendRed;
               return GestureDetector(
                 // الضغط المطول يفتح الوصل في شاشة جديدة
                 onLongPress: () {
@@ -1121,27 +1122,29 @@ class _ReceiptPageState extends State<ReceiptPage> {
                   ],
                 ),
               ),
-              // الوصل في الثلث العلوي من الشاشة (يصغر تلقائياً إن لزم)
-              SizedBox(
-                height: size.height / 3,
-                child: FittedBox(
-                  fit: BoxFit.scaleDown,
-                  alignment: Alignment.topCenter,
-                  child: SizedBox(
-                    width: size.width - 10,
-                    child: RepaintBoundary(
-                      key: _boundaryKey,
-                      child: ReceiptCard(
-                        t: widget.t,
-                        ownerName: widget.ownerName,
-                        ownAcct: widget.ownAcct,
-                        createdAt: _createdAt,
+              // الوصل بعرض الشاشة كاملاً مع هامش 10 بكسل من كل الجهات
+              // (يصغر تلقائياً فقط إن لم تتسع الشاشة له)
+              Expanded(
+                child: Padding(
+                  padding: const EdgeInsets.all(10),
+                  child: FittedBox(
+                    fit: BoxFit.scaleDown,
+                    alignment: Alignment.topCenter,
+                    child: SizedBox(
+                      width: size.width - 20,
+                      child: RepaintBoundary(
+                        key: _boundaryKey,
+                        child: ReceiptCard(
+                          t: widget.t,
+                          ownerName: widget.ownerName,
+                          ownAcct: widget.ownAcct,
+                          createdAt: _createdAt,
+                        ),
                       ),
                     ),
                   ),
                 ),
               ),
-              const Spacer(),
               Padding(
                 padding: const EdgeInsets.fromLTRB(20, 0, 20, 20),
                 child: SizedBox(
