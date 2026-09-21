@@ -22,10 +22,12 @@ const kAccent = Color(0xFF4C8DF6);
 const kRed = Color(0xFFFF4D4D);
 const kTeal = Color(0xFF5B98A4);
 const kPurple = Color(0xFF7D609E);
-// تدرّج زري استقبال/إرسال (يبدأ فاتح من الزاوية العلوية اليسرى وينتهي أغمق
-// في الزاوية السفلية اليمنى) مأخوذ من الصورتين المرجعيتين.
-const kTealGradient = [Color(0xFF63A3AF), Color(0xFF477F91)];
-const kPurpleGradient = [Color(0xFF8B6BAE), Color(0xFF624588)];
+// ألوان زري استقبال/إرسال — مقاسة من الصورة المرجعية (من اليسار لليمين)
+const kTealGradient = [Color(0xFF3A4547), Color(0xFF32434C)]; // استقبال
+const kPurpleGradient = [Color(0xFF38233F), Color(0xFF402A44)]; // إرسال
+// لون السهم والنص على كل زر
+const kReceiveInk = Color(0xFFDCE7F0);
+const kSendInk = Color(0xFFF3E6F7);
 const kGlass = Color(0x1FFFFFFF);
 const kGlassStrong = Color(0x2EFFFFFF);
 const kDialogBg = Color(0xFF1B2A6B);
@@ -49,10 +51,10 @@ const double kUsdResetThreshold = 10;
 
 const List<String> kCurrencies = ['EUR', 'USD', 'SYP'];
 
-// خط Tajawal بوزن 700 (Bold) في كل التطبيق
+// خط Tajawal بوزن 500 (Medium) في كل التطبيق
 TextStyle ts(double size, {Color color = Colors.white}) => TextStyle(
       fontFamily: 'Tajawal',
-      fontWeight: FontWeight.w700,
+      fontWeight: FontWeight.w500,
       fontSize: size,
       color: color,
     );
@@ -483,127 +485,120 @@ class HomePage extends StatelessWidget {
     );
   }
 
+  /// صف "آخر التحويلات": ارتفاع ثابت 64 كما في الصورة المرجعية
+  Widget _recentRow(Transfer t) {
+    final c = t.incoming ? kGreen : kRed;
+    return Container(
+      height: 64,
+      width: double.infinity,
+      margin: const EdgeInsets.only(bottom: 13),
+      padding: const EdgeInsets.symmetric(horizontal: 18),
+      decoration: BoxDecoration(
+        color: kGlass,
+        borderRadius: BorderRadius.circular(18),
+      ),
+      child: Row(
+        children: [
+          Expanded(
+            child: Text(t.name,
+                style: ts(17), maxLines: 1, overflow: TextOverflow.ellipsis),
+          ),
+          const SizedBox(width: 8),
+          Text(
+            '${t.incoming ? '+ ' : ''}${t.currency} ${money(t.amount)}',
+            style: ts(17, color: c),
+            textDirection: TextDirection.ltr,
+          ),
+          const SizedBox(width: 6),
+          Icon(
+            t.incoming ? Icons.download_rounded : Icons.upload_rounded,
+            color: c,
+            size: 22,
+          ),
+        ],
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
-    // آخر 4 حوالات فقط، والشاشة كاملة ثابتة (غير قابلة للتمرير) — كل قسم
-    // يأخذ حصته من الارتفاع المتاح عبر Expanded بدل أن يكون بارتفاع ثابت،
-    // فتتكيّف تلقائياً مع حجم الشاشة بدون overflow وبدون سكرول.
-    final recent = wallet.transfers.take(4).toList();
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(16, 8, 16, 104),
-      child: Column(
-        children: [
-        // الرصيد + العملات + العين
-        Row(
-          children: [
-            Text(
-              wallet.hidden ? '•••••' : money(wallet.balance),
-              style: ts(36),
-              textDirection: TextDirection.ltr,
-            ),
-            const Spacer(),
-            Column(
-              mainAxisSize: MainAxisSize.min,
-              children: kCurrencies.map((c) {
-                final sel = c == wallet.currency;
-                return GestureDetector(
-                  onTap: () => wallet.setCurrency(c),
-                  behavior: HitTestBehavior.opaque,
-                  child: Padding(
-                    padding: const EdgeInsets.symmetric(vertical: 2),
-                    child: Text(
-                      c,
-                      style: ts(sel ? 30 : 16,
-                          color: sel ? Colors.white : Colors.white70),
-                    ),
-                  ),
-                );
-              }).toList(),
-            ),
-            const SizedBox(width: 16),
-            GestureDetector(
-              onTap: wallet.toggleHidden,
-              child: Container(
-                width: 52,
-                height: 52,
-                decoration: BoxDecoration(
-                  color: kGlassStrong,
-                  borderRadius: BorderRadius.circular(16),
-                ),
-                child: Icon(
-                  wallet.hidden
-                      ? Icons.visibility_rounded
-                      : Icons.visibility_off_rounded,
-                  color: Colors.white,
-                ),
-              ),
-            ),
-          ],
-        ),
+    final recent = wallet.transfers.take(5).toList();
+    return ListView(
+      padding: const EdgeInsets.fromLTRB(16, 8, 16, 120),
+      children: [
+        // الرصيد + عجلة العملات (اسحب للأعلى/الأسفل) + العين
+        BalanceHeader(wallet: wallet),
         const SizedBox(height: 20),
 
-        // الاختصارات + استقبال/إرسال
-        Expanded(
-          flex: 11,
-          child: Row(
-            children: [
-              Expanded(
-                child: Container(
-                  padding: const EdgeInsets.all(10),
-                  decoration: BoxDecoration(
-                    color: kGlass,
-                    borderRadius: BorderRadius.circular(26),
-                  ),
-                  child: GridView.count(
-                    crossAxisCount: 2,
-                    mainAxisSpacing: 10,
-                    crossAxisSpacing: 10,
-                    padding: EdgeInsets.zero,
-                    physics: const NeverScrollableScrollPhysics(),
-                    children: [
-                      QuickTile(
-                          icon: Icons.bookmark_rounded,
-                          label: 'خدماتي',
-                          onTap: () => _soon(context)),
-                      QuickTile(
-                          icon: Icons.layers_rounded,
-                          label: 'مدفوعات',
-                          onTap: () => _soon(context)),
-                      QuickTile(
-                          icon: Icons.receipt_long_rounded,
-                          label: 'فواتير',
-                          onTap: () => _soon(context)),
-                      MoreTile(onTap: () => _soon(context)),
-                    ],
-                  ),
-                ),
-              ),
-              const SizedBox(width: 14),
-              Expanded(
-                child: Column(
-                  children: [
-                    Expanded(
-                      child: BigButton(
-                        label: 'استقبال',
-                        arrowTurns: 3, // السهم يشير للأسفل
-                        gradient: kTealGradient,
-                        onTap: onReceive,
+        // الاختصارات + استقبال/إرسال — مربع (الارتفاع = نصف العرض) مثل المرجع
+        LayoutBuilder(
+          builder: (context, cons) {
+            final side = (cons.maxWidth - 14) / 2;
+            return SizedBox(
+              height: side,
+              child: Row(
+                children: [
+                  Expanded(
+                    child: Container(
+                      padding: const EdgeInsets.all(10),
+                      decoration: BoxDecoration(
+                        color: kGlass,
+                        borderRadius: BorderRadius.circular(26),
+                      ),
+                      child: GridView.count(
+                        crossAxisCount: 2,
+                        mainAxisSpacing: 10,
+                        crossAxisSpacing: 10,
+                        padding: EdgeInsets.zero,
+                        physics: const NeverScrollableScrollPhysics(),
+                        children: [
+                          QuickTile(
+                              icon: Icons.bookmark_rounded,
+                              label: 'خدماتي',
+                              onTap: () => _soon(context)),
+                          QuickTile(
+                              icon: Icons.layers_rounded,
+                              label: 'مدفوعات',
+                              onTap: () => _soon(context)),
+                          QuickTile(
+                              icon: Icons.receipt_long_rounded,
+                              label: 'فواتير',
+                              onTap: () => _soon(context)),
+                          MoreTile(onTap: () => _soon(context)),
+                        ],
                       ),
                     ),
-                    const SizedBox(height: 14),
-                    Expanded(
-                      child: BigButton(
-                        label: 'إرسال',
-                        arrowTurns: 2, // السهم يشير لليمين
-                        gradient: kPurpleGradient,
-                        onTap: onSend,
-                      ),
+                  ),
+                  const SizedBox(width: 14),
+                  Expanded(
+                    child: Column(
+                      children: [
+                        Expanded(
+                          child: BigButton(
+                            label: 'استقبال',
+                            arrowAngle: -pi / 4, // السهم لأسفل اليسار
+                            ink: kReceiveInk,
+                            gradient: kTealGradient,
+                            onTap: onReceive,
+                          ),
+                        ),
+                        const SizedBox(height: 14),
+                        Expanded(
+                          child: BigButton(
+                            label: 'إرسال',
+                            arrowAngle: 3 * pi / 4, // السهم لأعلى اليمين
+                            ink: kSendInk,
+                            gradient: kPurpleGradient,
+                            onTap: onSend,
+                          ),
+                        ),
+                      ],
                     ),
-                  ],
-                ),
+                  ),
+                ],
               ),
-            ],
-          ),
+            );
+          },
         ),
         const SizedBox(height: 26),
 
@@ -620,47 +615,152 @@ class HomePage extends StatelessWidget {
           ),
         ),
         const SizedBox(height: 14),
+        ...recent.map(_recentRow),
+      ],
+    );
+  }
+}
+
+/// الرصيد الكبير + عجلة العملات + زر العين.
+/// اسحب على الرصيد/العملات للأعلى أو للأسفل لتبديل العملة، وتظهر مع كل
+/// عملة (السابقة والتالية) رصيدها بخط صغير. الضغط على عملة يختارها أيضاً.
+class BalanceHeader extends StatefulWidget {
+  final WalletState wallet;
+  const BalanceHeader({super.key, required this.wallet});
+
+  @override
+  State<BalanceHeader> createState() => _BalanceHeaderState();
+}
+
+class _BalanceHeaderState extends State<BalanceHeader> {
+  double _acc = 0;
+  int _dir = 1; // اتجاه آخر تبديل (للحركة)
+
+  void _select(String code, int dir) {
+    if (code == widget.wallet.currency) return;
+    HapticFeedback.selectionClick();
+    setState(() => _dir = dir);
+    widget.wallet.setCurrency(code);
+  }
+
+  void _move(int step) {
+    final n = kCurrencies.length;
+    final i = kCurrencies.indexOf(widget.wallet.currency);
+    _select(kCurrencies[(i + step + n) % n], step);
+  }
+
+  Widget _side(String code, int dir) {
+    final w = widget.wallet;
+    final bal = w.balances[code] ?? 0;
+    return GestureDetector(
+      behavior: HitTestBehavior.opaque,
+      onTap: () => _select(code, dir),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(vertical: 3),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(code, style: ts(16, color: Colors.white70)),
+            const SizedBox(width: 8),
+            Text(
+              w.hidden ? '•••' : money(bal),
+              style: ts(12, color: Colors.white54),
+              textDirection: TextDirection.ltr,
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final w = widget.wallet;
+    final n = kCurrencies.length;
+    final i = kCurrencies.indexOf(w.currency);
+    final prev = kCurrencies[(i - 1 + n) % n];
+    final next = kCurrencies[(i + 1) % n];
+
+    return Row(
+      children: [
         Expanded(
-          flex: 9,
-          child: Column(
-            children: recent
-                .map(
-                  (t) => Expanded(
-                    child: Container(
-                      width: double.infinity,
-                      margin: const EdgeInsets.only(bottom: 10),
-                      padding:
-                          const EdgeInsets.symmetric(horizontal: 18, vertical: 12),
-                      decoration: BoxDecoration(
-                        color: kGlass,
-                        borderRadius: BorderRadius.circular(18),
-                      ),
-                      child: Row(
-                        children: [
-                          Text(t.name, style: ts(17)),
-                          const Spacer(),
-                          Text(
-                            '${t.currency} ${money(t.amount)}',
-                            style: ts(16, color: t.incoming ? kGreen : kRed),
-                            textDirection: TextDirection.ltr,
-                          ),
-                          const SizedBox(width: 6),
-                          Icon(
-                              t.incoming
-                                  ? Icons.download_rounded
-                                  : Icons.upload_rounded,
-                              color: t.incoming ? kGreen : kRed,
-                              size: 20),
-                        ],
+          child: GestureDetector(
+            behavior: HitTestBehavior.opaque,
+            onVerticalDragStart: (_) => _acc = 0,
+            onVerticalDragUpdate: (d) {
+              _acc += d.delta.dy;
+              if (_acc <= -26) {
+                _acc = 0;
+                _move(1); // سحب للأعلى ← العملة التالية
+              } else if (_acc >= 26) {
+                _acc = 0;
+                _move(-1); // سحب للأسفل ← العملة السابقة
+              }
+            },
+            child: Row(
+              children: [
+                // يأخذ كل المساحة المتبقية، ويصغّر الرقم فقط إذا كان طويلاً جداً
+                Expanded(
+                  child: Align(
+                    alignment: AlignmentDirectional.centerStart,
+                    child: FittedBox(
+                      fit: BoxFit.scaleDown,
+                      alignment: AlignmentDirectional.centerStart,
+                      child: Text(
+                        w.hidden ? '•••••' : money(w.balance),
+                        style: ts(36),
+                        textDirection: TextDirection.ltr,
                       ),
                     ),
                   ),
-                )
-                .toList(),
+                ),
+                const SizedBox(width: 12),
+                AnimatedSwitcher(
+                  duration: const Duration(milliseconds: 220),
+                  transitionBuilder: (child, anim) => FadeTransition(
+                    opacity: anim,
+                    child: SlideTransition(
+                      position: Tween<Offset>(
+                        begin: Offset(0, 0.25 * _dir),
+                        end: Offset.zero,
+                      ).animate(anim),
+                      child: child,
+                    ),
+                  ),
+                  child: Column(
+                    key: ValueKey(w.currency),
+                    mainAxisSize: MainAxisSize.min,
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      _side(prev, -1),
+                      Text(w.currency, style: ts(30)),
+                      _side(next, 1),
+                    ],
+                  ),
+                ),
+              ],
+            ),
           ),
         ),
-        ],
-      ),
+        const SizedBox(width: 16),
+        GestureDetector(
+          onTap: w.toggleHidden,
+          child: Container(
+            width: 52,
+            height: 52,
+            decoration: BoxDecoration(
+              color: kGlassStrong,
+              borderRadius: BorderRadius.circular(16),
+            ),
+            child: Icon(
+              w.hidden
+                  ? Icons.visibility_rounded
+                  : Icons.visibility_off_rounded,
+              color: Colors.white,
+            ),
+          ),
+        ),
+      ],
     );
   }
 }
@@ -739,22 +839,30 @@ class MoreTile extends StatelessWidget {
   }
 }
 
-/// سهمك المرسل (assets/images/arrow.png) أبيض — يُدوَّر بحسب الاتجاه:
-/// quarterTurns 2 = لليمين (إرسال)، 3 = للأسفل (استقبال)
+/// سهمك المرسل (assets/images/arrow.png) — يُدوَّر ويُلوَّن حسب الزر:
+/// إرسال: 3π/4 (يشير لأعلى اليمين)، استقبال: -π/4 (يشير لأسفل اليسار)
 class ActionArrow extends StatelessWidget {
-  final int quarterTurns;
+  final double angle; // بالراديان، الموجب مع عقارب الساعة
+  final Color color;
   final double size;
 
-  const ActionArrow({super.key, required this.quarterTurns, this.size = 30});
+  const ActionArrow({
+    super.key,
+    required this.angle,
+    required this.color,
+    this.size = 28,
+  });
 
   @override
   Widget build(BuildContext context) {
-    return RotatedBox(
-      quarterTurns: quarterTurns,
+    return Transform.rotate(
+      angle: angle,
       child: Image.asset(
         'assets/images/arrow.png',
         width: size,
         height: size,
+        color: color,
+        colorBlendMode: BlendMode.srcIn,
         filterQuality: FilterQuality.high,
       ),
     );
@@ -763,14 +871,16 @@ class ActionArrow extends StatelessWidget {
 
 class BigButton extends StatelessWidget {
   final String label;
-  final int arrowTurns;
+  final double arrowAngle;
+  final Color ink;
   final List<Color> gradient;
   final VoidCallback onTap;
 
   const BigButton({
     super.key,
     required this.label,
-    required this.arrowTurns,
+    required this.arrowAngle,
+    required this.ink,
     required this.gradient,
     required this.onTap,
   });
@@ -780,17 +890,17 @@ class BigButton extends StatelessWidget {
     return Container(
       decoration: BoxDecoration(
         gradient: LinearGradient(
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
+          begin: Alignment.centerLeft,
+          end: Alignment.centerRight,
           colors: gradient,
         ),
-        borderRadius: BorderRadius.circular(26),
+        borderRadius: BorderRadius.circular(24),
       ),
       child: Material(
         color: Colors.transparent,
-        borderRadius: BorderRadius.circular(26),
+        borderRadius: BorderRadius.circular(24),
         child: InkWell(
-          borderRadius: BorderRadius.circular(26),
+          borderRadius: BorderRadius.circular(24),
           onTap: onTap,
           child: Center(
             child: Row(
@@ -798,9 +908,9 @@ class BigButton extends StatelessWidget {
               // يميناً والأيقونة يساراً تماماً كما في التصميم المرجعي.
               mainAxisSize: MainAxisSize.min,
               children: [
-                Text(label, style: ts(20)),
-                const SizedBox(width: 12),
-                ActionArrow(quarterTurns: arrowTurns),
+                Text(label, style: ts(20, color: ink)),
+                const SizedBox(width: 14),
+                ActionArrow(angle: arrowAngle, color: ink),
               ],
             ),
           ),
@@ -905,96 +1015,111 @@ class _TransfersPageState extends State<TransfersPage> {
   @override
   Widget build(BuildContext context) {
     final wallet = widget.wallet;
-    return ListView(
-      padding: const EdgeInsets.fromLTRB(16, 4, 16, 130),
-      children: [
-        Row(
+    return LayoutBuilder(
+      builder: (context, cons) {
+        // 7 حوالات ظاهرة كاملة في الشاشة: نطرح ~96 للعنوان و~108 للشريط السفلي
+        // ثم نقسم الباقي على 7 (بين 76 و96 لكل صف مع الفاصل).
+        final pitch =
+            ((cons.maxHeight - 96 - 108) / 7).clamp(76.0, 96.0).toDouble();
+        final rowH = pitch - 13;
+        return ListView(
+          padding: const EdgeInsets.fromLTRB(16, 4, 16, 130),
           children: [
-            Text('آخر التحويلات', style: ts(22)),
-            const Spacer(),
-            Text('متقدم', style: ts(16, color: kAccent)),
-          ],
-        ),
-        const SizedBox(height: 12),
-        Row(
-          children: [
-            const Icon(Icons.info_outline_rounded,
-                color: Colors.white, size: 22),
-            const SizedBox(width: 8),
-            Text('اضغط مطولاً لعرض الوصل', style: ts(14)),
-          ],
-        ),
-        const SizedBox(height: 14),
-        if (wallet.transfers.isEmpty)
-          Padding(
-            padding: const EdgeInsets.only(top: 60),
-            child: Center(
-              child: Text('لا توجد تحويلات بعد',
-                  style: ts(16, color: Colors.white70)),
+            Row(
+              children: [
+                Text('آخر التحويلات', style: ts(22)),
+                const Spacer(),
+                Text('متقدم', style: ts(16, color: kAccent)),
+              ],
             ),
-          ),
-        ...wallet.transfers.map((t) {
-          final open = openId == t.id;
-          final color = t.incoming ? kGreen : kRed;
-          return Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              GestureDetector(
-                onLongPress: () {
-                  HapticFeedback.mediumImpact();
-                  setState(() => openId = open ? null : t.id);
-                },
-                child: Container(
-                  margin: EdgeInsets.only(bottom: open ? 10 : 14),
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 18, vertical: 18),
-                  decoration: BoxDecoration(
-                    color: kGlass,
-                    borderRadius: BorderRadius.circular(22),
-                  ),
-                  child: Row(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
+            const SizedBox(height: 12),
+            Row(
+              children: [
+                const Icon(Icons.info_outline_rounded,
+                    color: Colors.white, size: 22),
+                const SizedBox(width: 8),
+                Text('اضغط مطولاً لعرض الوصل', style: ts(14)),
+              ],
+            ),
+            const SizedBox(height: 14),
+            if (wallet.transfers.isEmpty)
+              Padding(
+                padding: const EdgeInsets.only(top: 60),
+                child: Center(
+                  child: Text('لا توجد تحويلات بعد',
+                      style: ts(16, color: Colors.white70)),
+                ),
+              ),
+            ...wallet.transfers.map((t) {
+              final open = openId == t.id;
+              final color = t.incoming ? kGreen : kRed;
+              return Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  GestureDetector(
+                    onLongPress: () {
+                      HapticFeedback.mediumImpact();
+                      setState(() => openId = open ? null : t.id);
+                    },
+                    child: Container(
+                      height: rowH,
+                      margin: EdgeInsets.only(bottom: open ? 10 : 13),
+                      padding: const EdgeInsets.symmetric(horizontal: 18),
+                      decoration: BoxDecoration(
+                        color: kGlass,
+                        borderRadius: BorderRadius.circular(22),
+                      ),
+                      child: Row(
                         children: [
-                          Text(t.name, style: ts(18)),
-                          const SizedBox(height: 10),
-                          // المستقبَلة: أخضر وبدون إشارة (-)
-                          Text(
-                            t.incoming
-                                ? amountLabel(t.amount, t.currency)
-                                : '- ${amountLabel(t.amount, t.currency)}',
-                            style: ts(19, color: color),
+                          Column(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(t.name,
+                                  style: ts(18).copyWith(height: 1.2)),
+                              const SizedBox(height: 4),
+                              // المستقبَلة: أخضر مع (+)، والمرسلة: أحمر مع (-)
+                              Text(
+                                '${t.incoming ? '+' : '-'} '
+                                '${amountLabel(t.amount, t.currency)}',
+                                style: ts(19, color: color)
+                                    .copyWith(height: 1.2),
+                              ),
+                            ],
+                          ),
+                          const Spacer(),
+                          Column(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            crossAxisAlignment: CrossAxisAlignment.end,
+                            children: [
+                              Text(t.id,
+                                  style: ts(15).copyWith(height: 1.2),
+                                  textDirection: TextDirection.ltr),
+                              const SizedBox(height: 6),
+                              Text(fmtDate(t.at),
+                                  style: ts(14).copyWith(height: 1.2),
+                                  textDirection: TextDirection.ltr),
+                            ],
                           ),
                         ],
                       ),
-                      const Spacer(),
-                      Column(
-                        crossAxisAlignment: CrossAxisAlignment.end,
-                        children: [
-                          Text(t.id,
-                              style: ts(15), textDirection: TextDirection.ltr),
-                          const SizedBox(height: 14),
-                          Text(fmtDate(t.at),
-                              style: ts(14), textDirection: TextDirection.ltr),
-                        ],
-                      ),
-                    ],
+                    ),
                   ),
-                ),
-              ),
-              // الوصل يظهر تحت الحوالة فقط عند الضغط المطول
-              AnimatedSize(
-                duration: const Duration(milliseconds: 250),
-                curve: Curves.easeOutCubic,
-                alignment: Alignment.topCenter,
-                child: open ? _panel(t) : const SizedBox(width: double.infinity),
-              ),
-            ],
-          );
-        }),
-      ],
+                  // الوصل يظهر تحت الحوالة فقط عند الضغط المطول
+                  AnimatedSize(
+                    duration: const Duration(milliseconds: 250),
+                    curve: Curves.easeOutCubic,
+                    alignment: Alignment.topCenter,
+                    child: open
+                        ? _panel(t)
+                        : const SizedBox(width: double.infinity),
+                  ),
+                ],
+              );
+            }),
+          ],
+        );
+      },
     );
   }
 }
