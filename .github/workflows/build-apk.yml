@@ -42,7 +42,7 @@ jobs:
       - name: Set custom app icon
         run: |
           mkdir -p android/app/src/main/res/drawable-nodpi
-          cp android_icon/app_icon.png android/app/src/main/res/drawable-nodpi/app_icon.png
+          cp assets/images/app_icon.png android/app/src/main/res/drawable-nodpi/app_icon.png
           sed -i 's#android:icon="@mipmap/ic_launcher"#android:icon="@drawable/app_icon"#' android/app/src/main/AndroidManifest.xml
 
       # حماية إضافية: لو القالب المولَّد فيه Kotlin أقدم من 1.9 نرفعه
