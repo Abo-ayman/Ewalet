@@ -51,10 +51,10 @@ const double kUsdResetThreshold = 10;
 
 const List<String> kCurrencies = ['EUR', 'USD', 'SYP'];
 
-// خط Tajawal بوزن 500 (Medium) في كل التطبيق
+// خط Tajawal بوزن 600 (SemiBold) في كل التطبيق — بين Medium وBold
 TextStyle ts(double size, {Color color = Colors.white}) => TextStyle(
       fontFamily: 'Tajawal',
-      fontWeight: FontWeight.w500,
+      fontWeight: FontWeight.w600,
       fontSize: size,
       color: color,
     );
@@ -621,9 +621,9 @@ class HomePage extends StatelessWidget {
   }
 }
 
-/// الرصيد الكبير + عجلة العملات + زر العين.
-/// اسحب على الرصيد/العملات للأعلى أو للأسفل لتبديل العملة، وتظهر مع كل
-/// عملة (السابقة والتالية) رصيدها بخط صغير. الضغط على عملة يختارها أيضاً.
+/// الرصيد الكبير + عجلة العملات (أسماء فقط) + زر العين.
+/// اسحب على الرصيد/العملات للأعلى أو للأسفل لتبديل العملة، ويظهر رصيد العملة
+/// المختارة في الجهة الأخرى. الضغط على اسم عملة يختارها أيضاً.
 class BalanceHeader extends StatefulWidget {
   final WalletState wallet;
   const BalanceHeader({super.key, required this.wallet});
@@ -650,25 +650,12 @@ class _BalanceHeaderState extends State<BalanceHeader> {
   }
 
   Widget _side(String code, int dir) {
-    final w = widget.wallet;
-    final bal = w.balances[code] ?? 0;
     return GestureDetector(
       behavior: HitTestBehavior.opaque,
       onTap: () => _select(code, dir),
       child: Padding(
         padding: const EdgeInsets.symmetric(vertical: 3),
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Text(code, style: ts(16, color: Colors.white70)),
-            const SizedBox(width: 8),
-            Text(
-              w.hidden ? '•••' : money(bal),
-              style: ts(12, color: Colors.white54),
-              textDirection: TextDirection.ltr,
-            ),
-          ],
-        ),
+        child: Text(code, style: ts(16, color: Colors.white70)),
       ),
     );
   }
@@ -923,98 +910,12 @@ class BigButton extends StatelessWidget {
 // ─────────────────────────────────────────────
 // تبويب التحويلات + الإيصال
 // ─────────────────────────────────────────────
-class TransfersPage extends StatefulWidget {
+class TransfersPage extends StatelessWidget {
   final WalletState wallet;
   const TransfersPage({super.key, required this.wallet});
 
   @override
-  State<TransfersPage> createState() => _TransfersPageState();
-}
-
-class _TransfersPageState extends State<TransfersPage> {
-  String? openId; // الحوالة المفتوح وصلها حالياً
-  bool busy = false;
-  final Map<String, GlobalKey> _keys = {};
-
-  GlobalKey _keyFor(String id) => _keys.putIfAbsent(id, () => GlobalKey());
-
-  /// يلتقط الوصل الظاهر كصورة، يضعه في ملف PDF، ثم يفتح قائمة المشاركة
-  /// (اختر واتساب منها).
-  Future<void> _share(Transfer t) async {
-    final ctx = _keyFor(t.id).currentContext;
-    if (ctx == null || busy) return;
-    setState(() => busy = true);
-    try {
-      final boundary = ctx.findRenderObject() as RenderRepaintBoundary;
-      final image = await boundary.toImage(pixelRatio: 3);
-      final data = await image.toByteData(format: ui.ImageByteFormat.png);
-      if (data == null) throw Exception('render failed');
-      final pdfBytes = await buildReceiptPdf(
-        data.buffer.asUint8List(),
-        image.width,
-        image.height,
-      );
-      final dir = await getTemporaryDirectory();
-      final file = File('${dir.path}/receipt_${t.id.replaceAll('#', '')}.pdf');
-      await file.writeAsBytes(pdfBytes, flush: true);
-      await Share.shareXFiles(
-        [XFile(file.path, mimeType: 'application/pdf')],
-        text: 'وصل عملية رقم ${t.id.replaceAll('#', '')}',
-      );
-    } catch (_) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('تعذّر إنشاء الوصل', style: ts(14))),
-        );
-      }
-    } finally {
-      if (mounted) setState(() => busy = false);
-    }
-  }
-
-  Widget _panel(Transfer t) {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 14),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          RepaintBoundary(
-            key: _keyFor(t.id),
-            child: ReceiptCard(
-              t: t,
-              ownerName: widget.wallet.ownerName,
-              ownAcct: widget.wallet.ownAcct,
-            ),
-          ),
-          const SizedBox(height: 10),
-          FilledButton.icon(
-            style: FilledButton.styleFrom(
-              backgroundColor: kWhatsapp,
-              foregroundColor: Colors.white,
-              padding: const EdgeInsets.symmetric(vertical: 13),
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(16),
-              ),
-            ),
-            onPressed: busy ? null : () => _share(t),
-            icon: busy
-                ? const SizedBox(
-                    width: 18,
-                    height: 18,
-                    child: CircularProgressIndicator(
-                        strokeWidth: 2, color: Colors.white),
-                  )
-                : const Icon(Icons.share_rounded),
-            label: Text('مشاركة الوصل PDF عبر واتساب', style: ts(15)),
-          ),
-        ],
-      ),
-    );
-  }
-
-  @override
   Widget build(BuildContext context) {
-    final wallet = widget.wallet;
     return LayoutBuilder(
       builder: (context, cons) {
         // 7 حوالات ظاهرة كاملة في الشاشة: نطرح ~96 للعنوان و~108 للشريط السفلي
@@ -1051,75 +952,201 @@ class _TransfersPageState extends State<TransfersPage> {
                 ),
               ),
             ...wallet.transfers.map((t) {
-              final open = openId == t.id;
               final color = t.incoming ? kGreen : kRed;
-              return Column(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  GestureDetector(
-                    onLongPress: () {
-                      HapticFeedback.mediumImpact();
-                      setState(() => openId = open ? null : t.id);
-                    },
-                    child: Container(
-                      height: rowH,
-                      margin: EdgeInsets.only(bottom: open ? 10 : 13),
-                      padding: const EdgeInsets.symmetric(horizontal: 18),
-                      decoration: BoxDecoration(
-                        color: kGlass,
-                        borderRadius: BorderRadius.circular(22),
+              return GestureDetector(
+                // الضغط المطول يفتح الوصل في شاشة جديدة
+                onLongPress: () {
+                  HapticFeedback.mediumImpact();
+                  Navigator.of(context).push(
+                    MaterialPageRoute<void>(
+                      builder: (_) => ReceiptPage(
+                        t: t,
+                        ownerName: wallet.ownerName,
+                        ownAcct: wallet.ownAcct,
                       ),
-                      child: Row(
+                    ),
+                  );
+                },
+                child: Container(
+                  height: rowH,
+                  margin: const EdgeInsets.only(bottom: 13),
+                  padding: const EdgeInsets.symmetric(horizontal: 18),
+                  decoration: BoxDecoration(
+                    color: kGlass,
+                    borderRadius: BorderRadius.circular(22),
+                  ),
+                  child: Row(
+                    children: [
+                      Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Column(
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(t.name,
-                                  style: ts(18).copyWith(height: 1.2)),
-                              const SizedBox(height: 4),
-                              // المستقبَلة: أخضر مع (+)، والمرسلة: أحمر مع (-)
-                              Text(
-                                '${t.incoming ? '+' : '-'} '
-                                '${amountLabel(t.amount, t.currency)}',
-                                style: ts(19, color: color)
-                                    .copyWith(height: 1.2),
-                              ),
-                            ],
-                          ),
-                          const Spacer(),
-                          Column(
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            crossAxisAlignment: CrossAxisAlignment.end,
-                            children: [
-                              Text(t.id,
-                                  style: ts(15).copyWith(height: 1.2),
-                                  textDirection: TextDirection.ltr),
-                              const SizedBox(height: 6),
-                              Text(fmtDate(t.at),
-                                  style: ts(14).copyWith(height: 1.2),
-                                  textDirection: TextDirection.ltr),
-                            ],
+                          Text(t.name, style: ts(18).copyWith(height: 1.2)),
+                          const SizedBox(height: 4),
+                          // المستقبَلة: أخضر مع (+)، والمرسلة: أحمر مع (-)
+                          Text(
+                            '${t.incoming ? '+' : '-'} '
+                            '${amountLabel(t.amount, t.currency)}',
+                            style: ts(19, color: color).copyWith(height: 1.2),
                           ),
                         ],
                       ),
-                    ),
+                      const Spacer(),
+                      Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        crossAxisAlignment: CrossAxisAlignment.end,
+                        children: [
+                          Text(t.id,
+                              style: ts(15).copyWith(height: 1.2),
+                              textDirection: TextDirection.ltr),
+                          const SizedBox(height: 6),
+                          Text(fmtDate(t.at),
+                              style: ts(14).copyWith(height: 1.2),
+                              textDirection: TextDirection.ltr),
+                        ],
+                      ),
+                    ],
                   ),
-                  // الوصل يظهر تحت الحوالة فقط عند الضغط المطول
-                  AnimatedSize(
-                    duration: const Duration(milliseconds: 250),
-                    curve: Curves.easeOutCubic,
-                    alignment: Alignment.topCenter,
-                    child: open
-                        ? _panel(t)
-                        : const SizedBox(width: double.infinity),
-                  ),
-                ],
+                ),
               );
             }),
           ],
         );
       },
+    );
+  }
+}
+
+/// شاشة الوصل: الوصل في الثلث العلوي، وباقي الصفحة بيضاء، وفي الأسفل زر
+/// "تصدير" الذي ينشئ ملف PDF ويفتح قائمة المشاركة (اختر واتساب).
+class ReceiptPage extends StatefulWidget {
+  final Transfer t;
+  final String ownerName;
+  final String ownAcct;
+
+  const ReceiptPage({
+    super.key,
+    required this.t,
+    required this.ownerName,
+    required this.ownAcct,
+  });
+
+  @override
+  State<ReceiptPage> createState() => _ReceiptPageState();
+}
+
+class _ReceiptPageState extends State<ReceiptPage> {
+  static const _exportBlue = Color(0xFF0277BD); // أزرق سماوي داكن
+  final GlobalKey _boundaryKey = GlobalKey();
+  bool busy = false;
+
+  Future<void> _export() async {
+    final ctx = _boundaryKey.currentContext;
+    if (ctx == null || busy) return;
+    setState(() => busy = true);
+    try {
+      final boundary = ctx.findRenderObject() as RenderRepaintBoundary;
+      final image = await boundary.toImage(pixelRatio: 3);
+      final data = await image.toByteData(format: ui.ImageByteFormat.png);
+      if (data == null) throw Exception('render failed');
+      final pdfBytes = await buildReceiptPdf(
+        data.buffer.asUint8List(),
+        image.width,
+        image.height,
+      );
+      final opNo = widget.t.id.replaceAll('#', '');
+      final dir = await getTemporaryDirectory();
+      final file = File('${dir.path}/receipt_$opNo.pdf');
+      await file.writeAsBytes(pdfBytes, flush: true);
+      await Share.shareXFiles(
+        [XFile(file.path, mimeType: 'application/pdf')],
+        text: 'وصل عملية رقم $opNo',
+      );
+    } catch (_) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('تعذّر إنشاء الوصل', style: ts(14))),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => busy = false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final size = MediaQuery.of(context).size;
+    const ink = Color(0xFF111111);
+    return AnnotatedRegion<SystemUiOverlayStyle>(
+      value: SystemUiOverlayStyle.dark, // أيقونات شريط الحالة داكنة على الأبيض
+      child: Scaffold(
+        backgroundColor: Colors.white,
+        body: SafeArea(
+          child: Column(
+            children: [
+              Padding(
+                padding: const EdgeInsets.fromLTRB(4, 2, 12, 0),
+                child: Row(
+                  children: [
+                    IconButton(
+                      onPressed: () => Navigator.of(context).pop(),
+                      icon: const Icon(Icons.arrow_back_rounded, color: ink),
+                    ),
+                    Text('الوصل', style: ts(18, color: ink)),
+                  ],
+                ),
+              ),
+              // الوصل في الثلث العلوي من الشاشة (يصغر تلقائياً إن لزم)
+              SizedBox(
+                height: size.height / 3,
+                child: FittedBox(
+                  fit: BoxFit.scaleDown,
+                  alignment: Alignment.topCenter,
+                  child: SizedBox(
+                    width: size.width - 32,
+                    child: RepaintBoundary(
+                      key: _boundaryKey,
+                      child: ReceiptCard(
+                        t: widget.t,
+                        ownerName: widget.ownerName,
+                        ownAcct: widget.ownAcct,
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+              const Spacer(),
+              Padding(
+                padding: const EdgeInsets.fromLTRB(20, 0, 20, 20),
+                child: SizedBox(
+                  width: double.infinity,
+                  child: FilledButton.icon(
+                    style: FilledButton.styleFrom(
+                      backgroundColor: _exportBlue,
+                      foregroundColor: Colors.white,
+                      disabledBackgroundColor: _exportBlue.withOpacity(0.6),
+                      padding: const EdgeInsets.symmetric(vertical: 15),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(16),
+                      ),
+                    ),
+                    onPressed: busy ? null : _export,
+                    icon: busy
+                        ? const SizedBox(
+                            width: 18,
+                            height: 18,
+                            child: CircularProgressIndicator(
+                                strokeWidth: 2, color: Colors.white),
+                          )
+                        : const Icon(Icons.share_rounded),
+                    label: Text('تصدير', style: ts(18)),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
     );
   }
 }
