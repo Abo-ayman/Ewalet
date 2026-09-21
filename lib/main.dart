@@ -31,6 +31,8 @@ const kReceiveInk = Color(0xFFDCE7F0);
 const kSendInk = Color(0xFFF3E6F7);
 const kGlass = Color(0x1FFFFFFF);
 const kGlassStrong = Color(0x2EFFFFFF);
+// لون الشريط السفلي = نفس لون خلفية الحوالات (kGlass فوق kBg) لكن معتم، وحافته بلون الخلفية العامة
+final kNavBg = Color.alphaBlend(kGlass, kBg);
 const kDialogBg = Color(0xFF1B2A6B);
 // أخضر الحوالات المستقبَلة + أخضر زر المشاركة عبر واتساب
 const kGreen = Color(0xFF428177);
@@ -512,35 +514,40 @@ class HomePage extends StatelessWidget {
 
   /// صف "آخر التحويلات": ارتفاع ثابت 64 كما في الصورة المرجعية
   Widget _recentRow(Transfer t) {
+    const k = 0.95; // تصغير 5٪
     final c = t.incoming ? kGreen : kSendRed;
-    return Container(
-      height: 64,
-      width: double.infinity,
-      margin: const EdgeInsets.only(bottom: 13),
-      padding: const EdgeInsets.symmetric(horizontal: 18),
-      decoration: BoxDecoration(
-        color: kGlass,
-        borderRadius: BorderRadius.circular(18),
-      ),
-      child: Row(
-        children: [
-          Expanded(
-            child: Text(t.name,
-                style: ts(17), maxLines: 1, overflow: TextOverflow.ellipsis),
-          ),
-          const SizedBox(width: 8),
-          Text(
-            '${t.incoming ? '+ ' : ''}${t.currency} ${money(t.amount)}',
-            style: ts(17, color: c),
-            textDirection: TextDirection.ltr,
-          ),
-          const SizedBox(width: 6),
-          Icon(
-            t.incoming ? Icons.download_rounded : Icons.upload_rounded,
-            color: c,
-            size: 22,
-          ),
-        ],
+    return FractionallySizedBox(
+      widthFactor: k,
+      child: Container(
+        height: 64 * k,
+        margin: EdgeInsets.only(bottom: 13 * k),
+        padding: EdgeInsets.symmetric(horizontal: 18 * k),
+        decoration: BoxDecoration(
+          color: kGlass,
+          borderRadius: BorderRadius.circular(18 * k),
+        ),
+        child: Row(
+          children: [
+            Expanded(
+              child: Text(t.name,
+                  style: ts(17 * k),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis),
+            ),
+            SizedBox(width: 8 * k),
+            Text(
+              '${t.incoming ? '+ ' : ''}${t.currency} ${money(t.amount)}',
+              style: ts(17 * k, color: c),
+              textDirection: TextDirection.ltr,
+            ),
+            SizedBox(width: 6 * k),
+            Icon(
+              t.incoming ? Icons.download_rounded : Icons.upload_rounded,
+              color: c,
+              size: 22 * k,
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -563,69 +570,73 @@ class HomePage extends StatelessWidget {
               // الاختصارات + استقبال/إرسال — مربع (الارتفاع = نصف العرض) مثل المرجع
               LayoutBuilder(
                 builder: (context, cons) {
+                  const k = 0.95; // تصغير 5٪
                   final side = (cons.maxWidth - 14) / 2;
-                  return SizedBox(
-                    height: side,
-                    child: Row(
-                      children: [
-                        Expanded(
-                          child: Container(
-                            padding: const EdgeInsets.all(10),
-                            decoration: BoxDecoration(
-                              color: kGlass,
-                              borderRadius: BorderRadius.circular(26),
+                  return Center(
+                    child: SizedBox(
+                      width: cons.maxWidth * k,
+                      height: side * k,
+                      child: Row(
+                        children: [
+                          Expanded(
+                            child: Container(
+                              padding: const EdgeInsets.all(10),
+                              decoration: BoxDecoration(
+                                color: kGlass,
+                                borderRadius: BorderRadius.circular(26),
+                              ),
+                              child: GridView.count(
+                                crossAxisCount: 2,
+                                mainAxisSpacing: 10,
+                                crossAxisSpacing: 10,
+                                padding: EdgeInsets.zero,
+                                physics: const NeverScrollableScrollPhysics(),
+                                children: [
+                                  QuickTile(
+                                      icon: Icons.bookmark_rounded,
+                                      label: 'خدماتي',
+                                      onTap: () => _soon(context)),
+                                  QuickTile(
+                                      icon: Icons.layers_rounded,
+                                      label: 'مدفوعات',
+                                      onTap: () => _soon(context)),
+                                  QuickTile(
+                                      icon: Icons.receipt_long_rounded,
+                                      label: 'فواتير',
+                                      onTap: () => _soon(context)),
+                                  MoreTile(onTap: () => _soon(context)),
+                                ],
+                              ),
                             ),
-                            child: GridView.count(
-                              crossAxisCount: 2,
-                              mainAxisSpacing: 10,
-                              crossAxisSpacing: 10,
-                              padding: EdgeInsets.zero,
-                              physics: const NeverScrollableScrollPhysics(),
+                          ),
+                          const SizedBox(width: 14),
+                          Expanded(
+                            child: Column(
                               children: [
-                                QuickTile(
-                                    icon: Icons.bookmark_rounded,
-                                    label: 'خدماتي',
-                                    onTap: () => _soon(context)),
-                                QuickTile(
-                                    icon: Icons.layers_rounded,
-                                    label: 'مدفوعات',
-                                    onTap: () => _soon(context)),
-                                QuickTile(
-                                    icon: Icons.receipt_long_rounded,
-                                    label: 'فواتير',
-                                    onTap: () => _soon(context)),
-                                MoreTile(onTap: () => _soon(context)),
+                                Expanded(
+                                  child: BigButton(
+                                    label: 'استقبال',
+                                    arrowAngle: -pi / 4, // السهم لأسفل اليسار
+                                    ink: kReceiveInk,
+                                    gradient: kTealGradient,
+                                    onTap: onReceive,
+                                  ),
+                                ),
+                                const SizedBox(height: 14),
+                                Expanded(
+                                  child: BigButton(
+                                    label: 'إرسال',
+                                    arrowAngle: 3 * pi / 4, // السهم لأعلى اليمين
+                                    ink: kSendInk,
+                                    gradient: kPurpleGradient,
+                                    onTap: onSend,
+                                  ),
+                                ),
                               ],
                             ),
                           ),
-                        ),
-                        const SizedBox(width: 14),
-                        Expanded(
-                          child: Column(
-                            children: [
-                              Expanded(
-                                child: BigButton(
-                                  label: 'استقبال',
-                                  arrowAngle: -pi / 4, // السهم لأسفل اليسار
-                                  ink: kReceiveInk,
-                                  gradient: kTealGradient,
-                                  onTap: onReceive,
-                                ),
-                              ),
-                              const SizedBox(height: 14),
-                              Expanded(
-                                child: BigButton(
-                                  label: 'إرسال',
-                                  arrowAngle: 3 * pi / 4, // السهم لأعلى اليمين
-                                  ink: kSendInk,
-                                  gradient: kPurpleGradient,
-                                  onTap: onSend,
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                      ],
+                        ],
+                      ),
                     ),
                   );
                 },
@@ -1707,15 +1718,15 @@ class BottomNav extends StatelessWidget {
           Container(
             height: 72,
             decoration: BoxDecoration(
-              color: const Color(0xCC1A2A66),
+              color: kNavBg,
               borderRadius: BorderRadius.circular(26),
-              border: Border.all(color: const Color(0x22FFFFFF)),
+              border: Border.all(color: kBg, width: 4),
             ),
             child: Row(
               children: [
                 _item(0, Icons.home_rounded, 'الرئيسية'),
                 _item(1, Icons.monetization_on_outlined, 'التحويلات'),
-                const SizedBox(width: 84),
+                const SizedBox(width: 88),
                 _item(2, Icons.credit_card_rounded, 'الخدمات'),
                 _item(3, Icons.person_outline_rounded, 'حسابي'),
               ],
@@ -1726,18 +1737,12 @@ class BottomNav extends StatelessWidget {
             child: GestureDetector(
               onTap: onScan,
               child: Container(
-                width: 72,
-                height: 72,
+                width: 80, // 72 + حافة 4 من كل جهة
+                height: 80,
                 decoration: BoxDecoration(
                   color: kAccent,
-                  borderRadius: BorderRadius.circular(22),
-                  boxShadow: const [
-                    BoxShadow(
-                      color: Color(0x554C8DF6),
-                      blurRadius: 16,
-                      offset: Offset(0, 6),
-                    ),
-                  ],
+                  borderRadius: BorderRadius.circular(26),
+                  border: Border.all(color: kBg, width: 4),
                 ),
                 child: const Icon(Icons.qr_code_scanner_rounded,
                     color: Colors.white, size: 38),
