@@ -19,7 +19,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 // ─────────────────────────────────────────────
 const kBg = Color(0xFF0D1225);
 const kAccent = Color(0xFF4C8DF6);
-const kRed = Color(0xFFFF4D4D);
+const kRed = Color(0xFF6B1F2A);
 const kTeal = Color(0xFF5B98A4);
 const kPurple = Color(0xFF7D609E);
 // ألوان زري استقبال/إرسال — مقاسة من الصورة المرجعية (من اليسار لليمين)
@@ -32,7 +32,7 @@ const kGlass = Color(0x1FFFFFFF);
 const kGlassStrong = Color(0x2EFFFFFF);
 const kDialogBg = Color(0xFF1B2A6B);
 // أخضر الحوالات المستقبَلة + أخضر زر المشاركة عبر واتساب
-const kGreen = Color(0xFF054239);
+const kGreen = Color(0xFF428177);
 const kWhatsapp = Color(0xFF25D366);
 
 /// مسار صورتك الخاصة للأفاتار (أعلى اليمين).
