@@ -911,13 +911,26 @@ class QuickTile extends StatelessWidget {
       child: InkWell(
         borderRadius: BorderRadius.circular(20),
         onTap: onTap,
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(icon, color: Colors.white, size: 34),
-            const SizedBox(height: 6),
-            Text(label, style: ts(13)),
-          ],
+        // نربط حجم الأيقونة والنص بحجم المربع نفسه (بدل رقم ثابت) حتى ما
+        // تتصادم الأيقونة مع إطار المربع إذا تغيّر حجم الشبكة مستقبلاً.
+        child: LayoutBuilder(
+          builder: (context, cons) {
+            final side = min(cons.maxWidth, cons.maxHeight);
+            return Padding(
+              padding: EdgeInsets.all(side * 0.10),
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Icon(icon, color: Colors.white, size: side * 0.36),
+                  SizedBox(height: side * 0.07),
+                  Text(label,
+                      style: ts(side * 0.155),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis),
+                ],
+              ),
+            );
+          },
         ),
       ),
     );
@@ -928,12 +941,14 @@ class MoreTile extends StatelessWidget {
   final VoidCallback onTap;
   const MoreTile({super.key, required this.onTap});
 
-  Widget _mini(IconData? icon) => Container(
+  Widget _mini(IconData? icon, double cellSide) => Container(
         decoration: BoxDecoration(
           color: const Color(0x33FFFFFF),
-          borderRadius: BorderRadius.circular(10),
+          borderRadius: BorderRadius.circular(cellSide * 0.22),
         ),
-        child: icon == null ? null : Icon(icon, size: 16, color: Colors.white),
+        child: icon == null
+            ? null
+            : Icon(icon, size: cellSide * 0.55, color: Colors.white),
       );
 
   @override
@@ -944,21 +959,29 @@ class MoreTile extends StatelessWidget {
       child: InkWell(
         borderRadius: BorderRadius.circular(20),
         onTap: onTap,
-        child: Padding(
-          padding: const EdgeInsets.all(12),
-          child: GridView.count(
-            crossAxisCount: 2,
-            mainAxisSpacing: 8,
-            crossAxisSpacing: 8,
-            padding: EdgeInsets.zero,
-            physics: const NeverScrollableScrollPhysics(),
-            children: [
-              _mini(Icons.eject_rounded),
-              _mini(Icons.layers_rounded),
-              _mini(null),
-              _mini(null),
-            ],
-          ),
+        child: LayoutBuilder(
+          builder: (context, cons) {
+            final side = min(cons.maxWidth, cons.maxHeight);
+            final pad = side * 0.16;
+            const spacing = 8.0;
+            final cellSide = (side - pad * 2 - spacing) / 2;
+            return Padding(
+              padding: EdgeInsets.all(pad),
+              child: GridView.count(
+                crossAxisCount: 2,
+                mainAxisSpacing: spacing,
+                crossAxisSpacing: spacing,
+                padding: EdgeInsets.zero,
+                physics: const NeverScrollableScrollPhysics(),
+                children: [
+                  _mini(Icons.eject_rounded, cellSide),
+                  _mini(Icons.layers_rounded, cellSide),
+                  _mini(null, cellSide),
+                  _mini(null, cellSide),
+                ],
+              ),
+            );
+          },
         ),
       ),
     );
