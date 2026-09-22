@@ -17,10 +17,10 @@ import 'package:shared_preferences/shared_preferences.dart';
 // ─────────────────────────────────────────────
 // الألوان والثوابت
 // ─────────────────────────────────────────────
-const kBg = Color(0xFF0D1225);
+const kBg = Color(0xFF141B38); // أفتح 5٪ من 0xFF0D1225
 const kAccent = Color(0xFF4C8DF6);
 const kRed = Color(0xFF6B1F2A);
-const kSendRed = Color(0xFF9C2A57); // أحمر الحوالات الصادرة (مطابق للصورة المرجعية)
+const kSendRed = Color(0xFFC4356D); // أحمر الحوالات الصادرة، أفتح 10٪ من 0xFF9C2A57
 const kTeal = Color(0xFF5B98A4);
 const kPurple = Color(0xFF7D609E);
 // ألوان زري استقبال/إرسال — مقاسة من الصورة المرجعية (من اليسار لليمين)
@@ -61,6 +61,13 @@ TextStyle ts(double size, {Color color = Colors.white}) => TextStyle(
       fontSize: size,
       color: color,
     );
+
+/// أول 3 كلمات من الاسم كحد أقصى؛ أي زيادة تُستبدل بـ "..."
+String shortName(String name, {int maxWords = 3}) {
+  final words = name.trim().split(RegExp(r'\s+'));
+  if (words.length <= maxWords) return name.trim();
+  return '${words.take(maxWords).join(' ')} ...';
+}
 
 /// نفس ts لكن بوزن 400 (يُستخدم في شاشة التحويلات)
 TextStyle ts400(double size, {Color color = Colors.white}) =>
@@ -426,21 +433,20 @@ class _ShellState extends State<Shell> {
               ];
               return Stack(
                 children: [
-                  Positioned.fill(
+                  // الربع الأعلى اليمين، مع اختفاء 30٪ من عرضه خارج حافة
+                  // الشاشة اليمنى (right سالب = مُزاح للخارج) كحركة جمالية.
+                  Positioned(
+                    top: 40,
+                    right: -84, // 30٪ من 280
                     child: IgnorePointer(
-                      // y = -0.6 → مركز الشعار عند 20٪ من الأعلى (داخل الربع الأول)
-                      // (-1 أعلى الشاشة، 0 الوسط، -0.5 = ربع الارتفاع)
-                      child: Align(
-                        alignment: const Alignment(0, -0.6),
-                        child: Opacity(
-                          opacity: 0.15,
-                          child: Image.asset(
-                            'assets/images/logo_watermark.png',
-                            width: 280,
-                            height: 280,
-                            fit: BoxFit.contain,
-                            filterQuality: FilterQuality.high,
-                          ),
+                      child: Opacity(
+                        opacity: 0.25, // 0.15 + 10٪
+                        child: Image.asset(
+                          'assets/images/logo_watermark.png',
+                          width: 280,
+                          height: 280,
+                          fit: BoxFit.contain,
+                          filterQuality: FilterQuality.high,
                         ),
                       ),
                     ),
@@ -455,17 +461,17 @@ class _ShellState extends State<Shell> {
                   // لتغطية زوايا الشريط/الزر المستديرة ومنع ظهور الحوالات
                   // المنزلقة تحتهما عند تلك الزوايا.
                   Positioned(
-                    left: 14,
-                    right: 14,
-                    bottom: 10,
+                    left: 10,
+                    right: 10,
+                    bottom: 0,
                     child: IgnorePointer(
                       child: Container(height: 100, color: kBg),
                     ),
                   ),
                   Positioned(
-                    left: 14,
-                    right: 14,
-                    bottom: 10,
+                    left: 10,
+                    right: 10,
+                    bottom: 0,
                     child: BottomNav(
                       index: tab,
                       onTap: (i) => setState(() => tab = i),
@@ -793,7 +799,7 @@ class _BalanceHeaderState extends State<BalanceHeader> {
       onTap: () => _select(code, dir),
       child: Padding(
         padding: const EdgeInsets.symmetric(vertical: 2.4), // 3 ← -20٪
-        child: Text(code, style: ts(12.8, color: Colors.white70)), // 16 ← -20٪
+        child: Text(code, style: ts(19.2, color: Colors.white70)), // 20٪ أصغر من الوسط (24)
       ),
     );
   }
@@ -1055,37 +1061,52 @@ class TransfersPage extends StatelessWidget {
         final pitch =
             ((cons.maxHeight - 96 - 108) / 7).clamp(76.0, 96.0).toDouble();
         final rowH = pitch - 13;
-        return ListView(
-          padding: const EdgeInsets.fromLTRB(16, 4, 16, 130),
+        return Column(
           children: [
-            Row(
-              children: [
-                Text('آخر التحويلات', style: ts(22)),
-                const Spacer(),
-                Text('متقدم', style: ts(16, color: kAccent)),
-              ],
-            ),
-            const SizedBox(height: 12),
-            Row(
-              children: [
-                const Icon(Icons.info_outline_rounded,
-                    color: Colors.white, size: 22),
-                const SizedBox(width: 8),
-                Text('اضغط مطولاً لعرض الوصل', style: ts(14)),
-              ],
-            ),
-            const SizedBox(height: 14),
-            if (wallet.transfers.isEmpty)
-              Padding(
-                padding: const EdgeInsets.only(top: 60),
-                child: Center(
-                  child: Text('لا توجد تحويلات بعد',
-                      style: ts(16, color: Colors.white70)),
-                ),
+            // العنوان + الملاحظة ثابتان، لا ينزلقان
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 4, 16, 0),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      Text('آخر التحويلات', style: ts(22)),
+                      const Spacer(),
+                      Text('متقدم', style: ts(16, color: kAccent)),
+                    ],
+                  ),
+                  const SizedBox(height: 12),
+                  Row(
+                    children: [
+                      const Icon(Icons.info_outline_rounded,
+                          color: Colors.white, size: 22),
+                      const SizedBox(width: 8),
+                      Text('اضغط مطولاً لعرض الوصل', style: ts(14)),
+                    ],
+                  ),
+                  const SizedBox(height: 14),
+                ],
               ),
-            ...wallet.transfers.map((t) {
+            ),
+            // الحوالات فقط هي القابلة للتمرير تحت الملاحظة
+            Expanded(
+              child: ListView(
+                padding: const EdgeInsets.fromLTRB(16, 0, 16, 130),
+                children: [
+                  if (wallet.transfers.isEmpty)
+                    Padding(
+                      padding: const EdgeInsets.only(top: 60),
+                      child: Center(
+                        child: Text('لا توجد تحويلات بعد',
+                            style: ts(16, color: Colors.white70)),
+                      ),
+                    ),
+                  ...wallet.transfers.map((t) {
               final color = t.incoming ? kGreen : kSendRed;
               return GestureDetector(
+                // ضغطة واحدة: تحويل جديد لنفس صاحب الحوالة (يسأل عن المبلغ فقط)
+                onTap: () => startSendFlow(context, wallet, presetName: t.name),
                 // الضغط المطول يفتح الوصل في شاشة جديدة
                 onLongPress: () {
                   HapticFeedback.mediumImpact();
@@ -1114,7 +1135,7 @@ class TransfersPage extends StatelessWidget {
                           mainAxisAlignment: MainAxisAlignment.center,
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            Text(t.name,
+                            Text(shortName(t.name),
                                 style: ts400(18).copyWith(height: 1.2), // وزن 400 للاسم فقط
                                 maxLines: 1,
                                 overflow: TextOverflow.ellipsis),
@@ -1146,7 +1167,10 @@ class TransfersPage extends StatelessWidget {
                   ),
                 ),
               );
-            }),
+                  }),
+                ],
+              ),
+            ),
           ],
         );
       },
