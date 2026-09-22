@@ -1137,7 +1137,7 @@ class TransfersPage extends StatelessWidget {
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
                             Text(shortName(t.name),
-                                style: ts400(18).copyWith(height: 1.2), // وزن 400 للاسم فقط
+                                style: ts400(13).copyWith(height: 1.2), // وزن 400 للاسم فقط — مصغّر ليطابق نسبة الصف/الخط في الصورة المرجعية
                                 maxLines: 1,
                                 overflow: TextOverflow.ellipsis),
                             const SizedBox(height: 4),
@@ -1145,7 +1145,7 @@ class TransfersPage extends StatelessWidget {
                             Text(
                               '${t.incoming ? '+' : '-'} '
                               '${amountLabel(t.amount, t.currency)}',
-                              style: ts(19, color: color).copyWith(height: 1.2),
+                              style: ts(15, color: color).copyWith(height: 1.2),
                             ),
                           ],
                         ),
@@ -1156,11 +1156,11 @@ class TransfersPage extends StatelessWidget {
                         crossAxisAlignment: CrossAxisAlignment.end,
                         children: [
                           Text(t.id,
-                              style: ts(15).copyWith(height: 1.2),
+                              style: ts(14).copyWith(height: 1.2),
                               textDirection: TextDirection.ltr),
                           const SizedBox(height: 6),
                           Text(fmtDate(t.at),
-                              style: ts(14).copyWith(height: 1.2),
+                              style: ts(13).copyWith(height: 1.2),
                               textDirection: TextDirection.ltr),
                         ],
                       ),
