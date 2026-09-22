@@ -17,10 +17,10 @@ import 'package:shared_preferences/shared_preferences.dart';
 // ─────────────────────────────────────────────
 // الألوان والثوابت
 // ─────────────────────────────────────────────
-const kBg = Color(0xFF141B38); // أفتح 5٪ من 0xFF0D1225
+const kBg = Color(0xFF1B244B); // أفتح 5٪ إضافية من 0xFF141B38
 const kAccent = Color(0xFF4C8DF6);
 const kRed = Color(0xFF6B1F2A);
-const kSendRed = Color(0xFFC4356D); // أحمر الحوالات الصادرة، أفتح 10٪ من 0xFF9C2A57
+const kSendRed = Color(0xFFFF2A6D); // أحمر الحوالات الصادرة (لون محدد صراحة)
 const kTeal = Color(0xFF5B98A4);
 const kPurple = Color(0xFF7D609E);
 // ألوان زري استقبال/إرسال — مقاسة من الصورة المرجعية (من اليسار لليمين)
@@ -457,15 +457,16 @@ class _ShellState extends State<Shell> {
                       Expanded(child: pages[tab]),
                     ],
                   ),
-                  // خلفية صلبة بلون خلفية الشاشة خلف الشريط وزر الباركود بالكامل،
-                  // لتغطية زوايا الشريط/الزر المستديرة ومنع ظهور الحوالات
-                  // المنزلقة تحتهما عند تلك الزوايا.
+                  // خلفية صلبة بلون خلفية الشاشة خلف الشريط فقط (بارتفاعه 72
+                  // فقط، وليس ارتفاع الشريط الكامل 100 الذي يشمل زر الباركود)،
+                  // فتمنع تداخل الحوالات معه دون أن تترك حداً عريضاً فوقه.
+                  // زر الباركود له حافة صغيرة خاصة به (4 بكسل) تكفيه بمفرده.
                   Positioned(
                     left: 10,
                     right: 10,
                     bottom: 0,
                     child: IgnorePointer(
-                      child: Container(height: 100, color: kBg),
+                      child: Container(height: 68.4, color: kBg), // مطابق لسماكة الشريط الجديدة
                     ),
                   ),
                   Positioned(
@@ -585,7 +586,7 @@ class HomePage extends StatelessWidget {
     const k = 0.95; // تصغير 5٪ (الارتفاع والخط) — العرض يطابق الشريط السفلي
     final c = t.incoming ? kGreen : kSendRed;
     return Container(
-      height: 64 * k,
+      height: 64 * k * 0.95, // أنحف 5٪ إضافية
       margin: EdgeInsets.only(bottom: 13 * k),
       padding: EdgeInsets.symmetric(horizontal: 18 * k),
       decoration: BoxDecoration(
@@ -640,7 +641,7 @@ class HomePage extends StatelessWidget {
                   return Center(
                     child: SizedBox(
                       width: cons.maxWidth * k,
-                      height: side * k,
+                      height: side * k * 0.95, // أنحف 5٪ إضافية (سماكة فقط)
                       child: Row(
                         children: [
                           Expanded(
@@ -1060,7 +1061,7 @@ class TransfersPage extends StatelessWidget {
         // ثم نقسم الباقي على 7 (بين 76 و96 لكل صف مع الفاصل).
         final pitch =
             ((cons.maxHeight - 96 - 108) / 7).clamp(76.0, 96.0).toDouble();
-        final rowH = pitch - 13;
+        final rowH = (pitch - 13) * 0.95; // أنحف 5٪
         return Column(
           children: [
             // العنوان + الملاحظة ثابتان، لا ينزلقان
@@ -1826,7 +1827,7 @@ class BottomNav extends StatelessWidget {
         alignment: Alignment.bottomCenter,
         children: [
           Container(
-            height: 72,
+            height: 68.4, // 72 أنحف 5٪
             decoration: BoxDecoration(
               color: kNavBg,
               borderRadius: BorderRadius.circular(26),
