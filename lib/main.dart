@@ -646,15 +646,15 @@ class HomePage extends StatelessWidget {
                         children: [
                           Expanded(
                             child: Container(
-                              padding: const EdgeInsets.all(10),
+                              padding: const EdgeInsets.all(12),
                               decoration: BoxDecoration(
                                 color: kGlass,
-                                borderRadius: BorderRadius.circular(26),
+                                borderRadius: BorderRadius.circular(28),
                               ),
                               child: GridView.count(
                                 crossAxisCount: 2,
-                                mainAxisSpacing: 10,
-                                crossAxisSpacing: 10,
+                                mainAxisSpacing: 12,
+                                crossAxisSpacing: 12,
                                 padding: EdgeInsets.zero,
                                 physics: const NeverScrollableScrollPhysics(),
                                 children: [
@@ -907,31 +907,26 @@ class QuickTile extends StatelessWidget {
   Widget build(BuildContext context) {
     return Material(
       color: kGlassStrong,
-      borderRadius: BorderRadius.circular(18),
+      borderRadius: BorderRadius.circular(20),
       child: InkWell(
-        borderRadius: BorderRadius.circular(18),
+        borderRadius: BorderRadius.circular(20),
         onTap: onTap,
-        child: LayoutBuilder(
-          builder: (context, cons) {
-            // أيقونة كبيرة تملأ الصندوق (~42٪ من أصغر ضلع)، بلا فراغ زائد،
-            // ومع FittedBox كضمان نهائي يمنع أي قص/تجاوز مهما صغر الصندوق.
-            final iconSize = (cons.maxHeight * 0.42).clamp(22.0, 38.0);
-            return FittedBox(
-              fit: BoxFit.scaleDown,
-              child: Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 6),
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    Icon(icon, color: Colors.white, size: iconSize),
-                    const SizedBox(height: 5),
-                    Text(label, style: ts(13)),
-                  ],
-                ),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 4),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(icon, color: Colors.white, size: 30),
+              const SizedBox(height: 8),
+              Text(
+                label,
+                style: ts(13.5),
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
               ),
-            );
-          },
+            ],
+          ),
         ),
       ),
     );
@@ -946,27 +941,19 @@ class MoreTile extends StatelessWidget {
   Widget build(BuildContext context) {
     return Material(
       color: kGlassStrong,
-      borderRadius: BorderRadius.circular(18),
+      borderRadius: BorderRadius.circular(20),
       child: InkWell(
-        borderRadius: BorderRadius.circular(18),
+        borderRadius: BorderRadius.circular(20),
         onTap: onTap,
-        child: LayoutBuilder(
-          builder: (context, cons) {
-            // أيقونتان واضحتان بلا صناديق فرعية فارغة (بدل شبكة 2×2
-            // نصفها فارغ)، بنفس منطق تكبير أيقونات QuickTile.
-            final iconSize = (cons.maxHeight * 0.36).clamp(20.0, 32.0);
-            return FittedBox(
-              fit: BoxFit.scaleDown,
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Icon(Icons.layers_rounded, color: Colors.white, size: iconSize),
-                  const SizedBox(width: 14),
-                  Icon(Icons.upload_rounded, color: Colors.white, size: iconSize),
-                ],
-              ),
-            );
-          },
+        child: const Center(
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(Icons.move_to_inbox_rounded, color: Colors.white, size: 26),
+              SizedBox(width: 12),
+              Icon(Icons.layers_rounded, color: Colors.white, size: 26),
+            ],
+          ),
         ),
       ),
     );
@@ -1187,8 +1174,8 @@ class TransfersPage extends StatelessWidget {
   }
 }
 
-/// شاشة الوصل: الوصل في الثلث العلوي، وباقي الصفحة بيضاء، وفي الأسفل زر
-/// "تصدير" الذي ينشئ ملف PDF ويفتح قائمة المشاركة (اختر واتساب).
+/// شاشة الوصل: الوصل في الثلث العلوي، وباقي الصفحة بيضاء، وفي الأسفل زرا
+/// "تصدير" و"مشاركة" اللذان ينشئان ملف PDF ويفتحان قائمة المشاركة.
 class ReceiptPage extends StatefulWidget {
   final Transfer t;
   final String ownerName;
@@ -1207,6 +1194,7 @@ class ReceiptPage extends StatefulWidget {
 
 class _ReceiptPageState extends State<ReceiptPage> {
   static const _exportBlue = Color(0xFF0277BD); // أزرق سماوي داكن
+  static final _shareGray = Colors.grey.shade600; // رمادي زر المشاركة
   final GlobalKey _boundaryKey = GlobalKey();
   final DateTime _createdAt = DateTime.now();
   bool busy = false;
@@ -1227,7 +1215,7 @@ class _ReceiptPageState extends State<ReceiptPage> {
       );
       final opNo = widget.t.id.replaceAll('#', '');
       final dir = await getTemporaryDirectory();
-      final file = File('${dir.path}/receipt_$opNo.pdf');
+      final file = File('${dir.path}/sham_cash_receipt_$opNo.pdf');
       await file.writeAsBytes(pdfBytes, flush: true);
       await Share.shareXFiles(
         [XFile(file.path, mimeType: 'application/pdf')],
@@ -1292,29 +1280,51 @@ class _ReceiptPageState extends State<ReceiptPage> {
               ),
               Padding(
                 padding: const EdgeInsets.fromLTRB(20, 0, 20, 20),
-                child: SizedBox(
-                  width: double.infinity,
-                  child: FilledButton.icon(
-                    style: FilledButton.styleFrom(
-                      backgroundColor: _exportBlue,
-                      foregroundColor: Colors.white,
-                      disabledBackgroundColor: _exportBlue.withOpacity(0.6),
-                      padding: const EdgeInsets.symmetric(vertical: 15),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(16),
+                child: Row(
+                  children: [
+                    Expanded(
+                      child: FilledButton.icon(
+                        style: FilledButton.styleFrom(
+                          backgroundColor: _exportBlue,
+                          foregroundColor: Colors.white,
+                          disabledBackgroundColor:
+                              _exportBlue.withOpacity(0.6),
+                          padding: const EdgeInsets.symmetric(vertical: 15),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(16),
+                          ),
+                        ),
+                        onPressed: busy ? null : _export,
+                        icon: busy
+                            ? const SizedBox(
+                                width: 18,
+                                height: 18,
+                                child: CircularProgressIndicator(
+                                    strokeWidth: 2, color: Colors.white),
+                              )
+                            : const Icon(Icons.share_rounded),
+                        label: Text('تصدير', style: ts(18)),
                       ),
                     ),
-                    onPressed: busy ? null : _export,
-                    icon: busy
-                        ? const SizedBox(
-                            width: 18,
-                            height: 18,
-                            child: CircularProgressIndicator(
-                                strokeWidth: 2, color: Colors.white),
-                          )
-                        : const Icon(Icons.share_rounded),
-                    label: Text('تصدير', style: ts(18)),
-                  ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: FilledButton.icon(
+                        style: FilledButton.styleFrom(
+                          backgroundColor: _shareGray,
+                          foregroundColor: Colors.white,
+                          disabledBackgroundColor:
+                              _shareGray.withOpacity(0.6),
+                          padding: const EdgeInsets.symmetric(vertical: 15),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(16),
+                          ),
+                        ),
+                        onPressed: busy ? null : _export,
+                        icon: const Icon(Icons.share_rounded),
+                        label: Text('مشاركة', style: ts(18)),
+                      ),
+                    ),
+                  ],
                 ),
               ),
             ],
