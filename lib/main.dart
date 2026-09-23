@@ -907,27 +907,28 @@ class QuickTile extends StatelessWidget {
   Widget build(BuildContext context) {
     return Material(
       color: kGlassStrong,
-      borderRadius: BorderRadius.circular(20),
+      borderRadius: BorderRadius.circular(18),
       child: InkWell(
-        borderRadius: BorderRadius.circular(20),
+        borderRadius: BorderRadius.circular(18),
         onTap: onTap,
-        // نربط حجم الأيقونة والنص بحجم المربع نفسه (بدل رقم ثابت) حتى ما
-        // تتصادم الأيقونة مع إطار المربع إذا تغيّر حجم الشبكة مستقبلاً.
         child: LayoutBuilder(
           builder: (context, cons) {
-            final side = min(cons.maxWidth, cons.maxHeight);
-            return Padding(
-              padding: EdgeInsets.all(side * 0.10),
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Icon(icon, color: Colors.white, size: side * 0.36),
-                  SizedBox(height: side * 0.07),
-                  Text(label,
-                      style: ts(side * 0.155),
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis),
-                ],
+            // أيقونة كبيرة تملأ الصندوق (~42٪ من أصغر ضلع)، بلا فراغ زائد،
+            // ومع FittedBox كضمان نهائي يمنع أي قص/تجاوز مهما صغر الصندوق.
+            final iconSize = (cons.maxHeight * 0.42).clamp(22.0, 38.0);
+            return FittedBox(
+              fit: BoxFit.scaleDown,
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 6),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Icon(icon, color: Colors.white, size: iconSize),
+                    const SizedBox(height: 5),
+                    Text(label, style: ts(13)),
+                  ],
+                ),
               ),
             );
           },
@@ -941,43 +942,27 @@ class MoreTile extends StatelessWidget {
   final VoidCallback onTap;
   const MoreTile({super.key, required this.onTap});
 
-  Widget _mini(IconData? icon, double cellSide) => Container(
-        decoration: BoxDecoration(
-          color: const Color(0x33FFFFFF),
-          borderRadius: BorderRadius.circular(cellSide * 0.22),
-        ),
-        child: icon == null
-            ? null
-            : Icon(icon, size: cellSide * 0.55, color: Colors.white),
-      );
-
   @override
   Widget build(BuildContext context) {
     return Material(
       color: kGlassStrong,
-      borderRadius: BorderRadius.circular(20),
+      borderRadius: BorderRadius.circular(18),
       child: InkWell(
-        borderRadius: BorderRadius.circular(20),
+        borderRadius: BorderRadius.circular(18),
         onTap: onTap,
         child: LayoutBuilder(
           builder: (context, cons) {
-            final side = min(cons.maxWidth, cons.maxHeight);
-            final pad = side * 0.16;
-            const spacing = 8.0;
-            final cellSide = (side - pad * 2 - spacing) / 2;
-            return Padding(
-              padding: EdgeInsets.all(pad),
-              child: GridView.count(
-                crossAxisCount: 2,
-                mainAxisSpacing: spacing,
-                crossAxisSpacing: spacing,
-                padding: EdgeInsets.zero,
-                physics: const NeverScrollableScrollPhysics(),
+            // أيقونتان واضحتان بلا صناديق فرعية فارغة (بدل شبكة 2×2
+            // نصفها فارغ)، بنفس منطق تكبير أيقونات QuickTile.
+            final iconSize = (cons.maxHeight * 0.36).clamp(20.0, 32.0);
+            return FittedBox(
+              fit: BoxFit.scaleDown,
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
                 children: [
-                  _mini(Icons.eject_rounded, cellSide),
-                  _mini(Icons.layers_rounded, cellSide),
-                  _mini(null, cellSide),
-                  _mini(null, cellSide),
+                  Icon(Icons.layers_rounded, color: Colors.white, size: iconSize),
+                  const SizedBox(width: 14),
+                  Icon(Icons.upload_rounded, color: Colors.white, size: iconSize),
                 ],
               ),
             );
@@ -1160,7 +1145,7 @@ class TransfersPage extends StatelessWidget {
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
                             Text(shortName(t.name),
-                                style: ts400(13).copyWith(height: 1.2), // وزن 400 للاسم فقط — مصغّر ليطابق نسبة الصف/الخط في الصورة المرجعية
+                                style: ts400(18).copyWith(height: 1.2), // وزن 400 للاسم فقط
                                 maxLines: 1,
                                 overflow: TextOverflow.ellipsis),
                             const SizedBox(height: 4),
@@ -1168,7 +1153,7 @@ class TransfersPage extends StatelessWidget {
                             Text(
                               '${t.incoming ? '+' : '-'} '
                               '${amountLabel(t.amount, t.currency)}',
-                              style: ts(15, color: color).copyWith(height: 1.2),
+                              style: ts(19, color: color).copyWith(height: 1.2),
                             ),
                           ],
                         ),
@@ -1179,11 +1164,11 @@ class TransfersPage extends StatelessWidget {
                         crossAxisAlignment: CrossAxisAlignment.end,
                         children: [
                           Text(t.id,
-                              style: ts(14).copyWith(height: 1.2),
+                              style: ts(15).copyWith(height: 1.2),
                               textDirection: TextDirection.ltr),
                           const SizedBox(height: 6),
                           Text(fmtDate(t.at),
-                              style: ts(13).copyWith(height: 1.2),
+                              style: ts(14).copyWith(height: 1.2),
                               textDirection: TextDirection.ltr),
                         ],
                       ),
