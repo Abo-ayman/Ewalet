@@ -912,20 +912,23 @@ class QuickTile extends StatelessWidget {
         borderRadius: BorderRadius.circular(20),
         onTap: onTap,
         child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 4),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Icon(icon, color: Colors.white, size: 30),
-              const SizedBox(height: 8),
-              Text(
-                label,
-                style: ts(13.5),
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-              ),
-            ],
+          padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 6),
+          child: FittedBox(
+            fit: BoxFit.scaleDown,
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Icon(icon, color: Colors.white, size: 24),
+                const SizedBox(height: 5),
+                Text(
+                  label,
+                  style: ts(12),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ],
+            ),
           ),
         ),
       ),
@@ -945,14 +948,18 @@ class MoreTile extends StatelessWidget {
       child: InkWell(
         borderRadius: BorderRadius.circular(20),
         onTap: onTap,
-        child: const Center(
-          child: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Icon(Icons.move_to_inbox_rounded, color: Colors.white, size: 26),
-              SizedBox(width: 12),
-              Icon(Icons.layers_rounded, color: Colors.white, size: 26),
-            ],
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 6),
+          child: FittedBox(
+            fit: BoxFit.scaleDown,
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: const [
+                Icon(Icons.move_to_inbox_rounded, color: Colors.white, size: 22),
+                SizedBox(width: 10),
+                Icon(Icons.layers_rounded, color: Colors.white, size: 22),
+              ],
+            ),
           ),
         ),
       ),
