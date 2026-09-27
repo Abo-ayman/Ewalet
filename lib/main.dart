@@ -23,9 +23,9 @@ const kRed = Color(0xFF6B1F2A);
 const kSendRed = Color(0xFFFF2A6D); // أحمر الحوالات الصادرة (لون محدد صراحة)
 const kTeal = Color(0xFF5B98A4);
 const kPurple = Color(0xFF7D609E);
-// ألوان زري استقبال/إرسال — مطابقة للتصميم الجديد (أخضر زمردي غامق / أحمر نبيتي غامق)
-const kTealGradient = [Color(0xFF1E3B36), kGreen]; // استقبال
-const kPurpleGradient = [Color(0xFF2E1119), kRed]; // إرسال
+// ألوان زري استقبال/إرسال — نسخة هادئة (نفس عائلة الألوان، بتباين وتشبّع أقل)
+const kTealGradient = [Color(0xFF23342F), Color(0xFF3C544D)]; // استقبال
+const kPurpleGradient = [Color(0xFF2A1E23), Color(0xFF43303A)]; // إرسال
 // لون السهم والنص على كل زر
 const kReceiveInk = Color(0xFFDCE7F0);
 const kSendInk = Color(0xFFF3E6F7);
@@ -128,6 +128,24 @@ String acctFromId(String id) {
 
 /// 0214************ — نفس شكل الحساب في الإيصال المرجعي
 String maskAcct(String first4) => '$first4************';
+
+/// رقم حساب كامل (16 رقماً مقسّمة على 4 مجموعات) يُشتق بثبات من آخر 4 أرقام
+/// المخزّنة (ownAcct)، ليظهر في شاشة "حسابي" وليُنسخ عند الضغط على أيقونة النسخ.
+String fullAccountNumber(String last4) {
+  final seed = int.tryParse(last4) ?? last4.hashCode;
+  final rnd = Random(seed);
+  final buf = StringBuffer();
+  for (var i = 0; i < 12; i++) {
+    buf.write(rnd.nextInt(10));
+  }
+  buf.write(last4.padLeft(4, '0'));
+  final digits = buf.toString();
+  final groups = <String>[];
+  for (var i = 0; i < digits.length; i += 4) {
+    groups.add(digits.substring(i, i + 4));
+  }
+  return groups.join(' ');
+}
 
 String receiptAmount(double v, String c) {
   switch (c) {
@@ -1839,6 +1857,104 @@ class _TransferResult {
 /// شيت "تحويل أموال" — يظهر بعد بطاقة معلومات الحساب مباشرة: يستعرض الطرف
 /// الآخر (اسم + رقم حساب مقنّع)، ثم اختيار العملة، ثم المبلغ المحوَّل،
 /// ثم ملاحظة اختيارية، وأخيراً زر إرسال/استقبال.
+/// عجلة عملات أفقية: تُسحب يميناً/يساراً بالإصبع، والعملة المختارة تبقى
+/// دائماً في المنتصف (مكبّرة وبلون مميز)، بينما تظهر البقية أصغر وأخفت جانبياً.
+class _CurrencyPicker extends StatefulWidget {
+  final List<MapEntry<String, String>> items; // code -> label
+  final String value;
+  final ValueChanged<String> onChanged;
+
+  const _CurrencyPicker({
+    required this.items,
+    required this.value,
+    required this.onChanged,
+  });
+
+  @override
+  State<_CurrencyPicker> createState() => _CurrencyPickerState();
+}
+
+class _CurrencyPickerState extends State<_CurrencyPicker> {
+  late final PageController _controller;
+  late int _index;
+
+  @override
+  void initState() {
+    super.initState();
+    _index = widget.items.indexWhere((e) => e.key == widget.value);
+    if (_index < 0) _index = 0;
+    _controller = PageController(viewportFraction: 0.36, initialPage: _index);
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  void _select(int i) {
+    if (i == _index) {
+      _controller.animateToPage(i,
+          duration: const Duration(milliseconds: 260), curve: Curves.easeOut);
+      return;
+    }
+    HapticFeedback.selectionClick();
+    setState(() => _index = i);
+    widget.onChanged(widget.items[i].key);
+    _controller.animateToPage(i,
+        duration: const Duration(milliseconds: 260), curve: Curves.easeOut);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return SizedBox(
+      height: 60,
+      child: PageView.builder(
+        controller: _controller,
+        itemCount: widget.items.length,
+        onPageChanged: (i) {
+          if (i == _index) return;
+          HapticFeedback.selectionClick();
+          setState(() => _index = i);
+          widget.onChanged(widget.items[i].key);
+        },
+        itemBuilder: (context, i) {
+          return AnimatedBuilder(
+            animation: _controller,
+            builder: (context, child) {
+              var page = _index.toDouble();
+              if (_controller.position.haveDimensions) {
+                page = _controller.page ?? _index.toDouble();
+              }
+              final diff = (page - i).abs().clamp(0.0, 1.0);
+              final scale = 1.0 - diff * 0.28;
+              final opacity = 1.0 - diff * 0.65;
+              return Center(
+                child: Opacity(
+                  opacity: opacity.clamp(0.35, 1.0),
+                  child: Transform.scale(scale: scale, child: child),
+                ),
+              );
+            },
+            child: GestureDetector(
+              onTap: () => _select(i),
+              child: Container(
+                margin: const EdgeInsets.symmetric(horizontal: 4),
+                decoration: BoxDecoration(
+                  color: i == _index ? kAccent : kGlassStrong,
+                  borderRadius: BorderRadius.circular(14),
+                ),
+                alignment: Alignment.center,
+                child: Text(widget.items[i].value, style: ts(16)),
+              ),
+            ),
+          );
+        },
+      ),
+    );
+  }
+}
+
 class _TransferAmountSheet extends StatefulWidget {
   final String name;
   final bool incoming;
@@ -1866,25 +1982,6 @@ class _TransferAmountSheetState extends State<_TransferAmountSheet> {
     amountCtrl.dispose();
     noteCtrl.dispose();
     super.dispose();
-  }
-
-  Widget _currencyChip(String code, String label) {
-    final sel = currency == code;
-    return Expanded(
-      child: GestureDetector(
-        onTap: () => setState(() => currency = code),
-        child: Container(
-          margin: const EdgeInsets.symmetric(horizontal: 4),
-          padding: const EdgeInsets.symmetric(vertical: 13),
-          decoration: BoxDecoration(
-            color: sel ? kAccent : kGlassStrong,
-            borderRadius: BorderRadius.circular(14),
-          ),
-          alignment: Alignment.center,
-          child: Text(label, style: ts(16)),
-        ),
-      ),
-    );
   }
 
   Widget _box(String hint, TextEditingController c, {TextInputType? kb}) {
@@ -1989,12 +2086,14 @@ class _TransferAmountSheetState extends State<_TransferAmountSheet> {
                   ),
                 ),
                 const SizedBox(height: 22),
-                Row(
-                  children: [
-                    _currencyChip('SYP', 'سوري'),
-                    _currencyChip('USD', 'دولار'),
-                    _currencyChip('EUR', 'يورو'),
+                _CurrencyPicker(
+                  items: const [
+                    MapEntry('SYP', 'سوري'),
+                    MapEntry('USD', 'دولار'),
+                    MapEntry('EUR', 'يورو'),
                   ],
+                  value: currency,
+                  onChanged: (v) => setState(() => currency = v),
                 ),
                 const SizedBox(height: 22),
                 Text('المبلغ المحول', style: ts(15, color: Colors.white70)),
@@ -2546,144 +2645,356 @@ class PlaceholderPage extends StatelessWidget {
 // ─────────────────────────────────────────────
 // حسابي — اسم صاحب الحساب (يظهر في الإيصالات)
 // ─────────────────────────────────────────────
-class AccountPage extends StatefulWidget {
+class AccountPage extends StatelessWidget {
   final WalletState wallet;
   const AccountPage({super.key, required this.wallet});
 
-  @override
-  State<AccountPage> createState() => _AccountPageState();
-}
-
-class _AccountPageState extends State<AccountPage> {
-  late final TextEditingController c =
-      TextEditingController(text: widget.wallet.ownerName);
-
-  @override
-  void dispose() {
-    c.dispose();
-    super.dispose();
+  void _soon(BuildContext context) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text('قريباً (نسخة تجريبية)', style: ts(14))),
+    );
   }
 
-  void _save() {
-    widget.wallet.setOwnerName(c.text);
-    FocusScope.of(context).unfocus();
+  Future<void> _editName(BuildContext context) async {
+    final ctrl = TextEditingController(text: wallet.ownerName);
+    final result = await showModalBottomSheet<String>(
+      context: context,
+      backgroundColor: Colors.transparent,
+      isScrollControlled: true,
+      builder: (_) => Padding(
+        padding: EdgeInsets.only(bottom: MediaQuery.of(context).viewInsets.bottom),
+        child: Container(
+          padding: const EdgeInsets.fromLTRB(20, 14, 20, 24),
+          decoration: const BoxDecoration(
+            color: kDialogBg,
+            borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
+          ),
+          child: SafeArea(
+            top: false,
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Container(
+                  width: 44,
+                  height: 4,
+                  margin: const EdgeInsets.only(bottom: 18),
+                  decoration: BoxDecoration(
+                    color: Colors.white24,
+                    borderRadius: BorderRadius.circular(4),
+                  ),
+                ),
+                Text('تعديل اسم الحساب', style: ts(14, color: Colors.white70)),
+                const SizedBox(height: 4),
+                Text('يظهر في الإيصالات كاسم المرسل أو المستلم',
+                    style: ts(12, color: Colors.white54)),
+                const SizedBox(height: 14),
+                TextField(
+                  controller: ctrl,
+                  autofocus: true,
+                  textAlign: TextAlign.center,
+                  keyboardType: TextInputType.name,
+                  style: ts(20),
+                  onSubmitted: (v) => Navigator.pop(context, v),
+                  decoration: InputDecoration(
+                    hintText: 'اكتب الاسم الكامل',
+                    hintStyle: ts(20, color: Colors.white54),
+                    border: InputBorder.none,
+                  ),
+                ),
+                const SizedBox(height: 20),
+                SizedBox(
+                  width: double.infinity,
+                  child: FilledButton(
+                    style: FilledButton.styleFrom(
+                      backgroundColor: kAccent,
+                      foregroundColor: Colors.white,
+                      padding: const EdgeInsets.symmetric(vertical: 15),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(16),
+                      ),
+                    ),
+                    onPressed: () => Navigator.pop(context, ctrl.text),
+                    child: Text('حفظ', style: ts(18)),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+    if (result != null && result.trim().isNotEmpty) {
+      wallet.setOwnerName(result);
+    }
+  }
+
+  Future<void> _copyAccountNumber(BuildContext context, String number) async {
+    await Clipboard.setData(ClipboardData(text: number.replaceAll(' ', '')));
+    if (!context.mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text('تم حفظ الاسم', style: ts(14))),
+      SnackBar(content: Text('تم نسخ رقم الحساب', style: ts(14))),
+    );
+  }
+
+  Future<void> _logout(BuildContext context) async {
+    final confirm = await showDialog<bool>(
+      context: context,
+      builder: (_) => AlertDialog(
+        backgroundColor: kDialogBg,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        title: Text('تسجيل الخروج', style: ts(18)),
+        content: Text('هل تريد تسجيل الخروج من حسابك؟',
+            style: ts(14, color: Colors.white70)),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: Text('إلغاء', style: ts(15, color: Colors.white70)),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(context, true),
+            child: Text('تسجيل الخروج', style: ts(15, color: kSendRed)),
+          ),
+        ],
+      ),
+    );
+    if (confirm == true && context.mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('تم تسجيل الخروج (نسخة تجريبية)', style: ts(14))),
+      );
+    }
+  }
+
+  /// صف قائمة بسيط: نص على اليمين، أيقونة على اليسار — بنفس تصميم المرجع
+  Widget _menuRow(
+    BuildContext context, {
+    required String label,
+    required IconData icon,
+    required VoidCallback onTap,
+    Color? iconColor,
+  }) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 12),
+      child: Material(
+        color: kGlass,
+        borderRadius: BorderRadius.circular(18),
+        child: InkWell(
+          borderRadius: BorderRadius.circular(18),
+          onTap: onTap,
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 18),
+            child: Row(
+              children: [
+                Text(label, style: ts(16)),
+                const Spacer(),
+                Icon(icon, color: iconColor ?? kAccent, size: 22),
+              ],
+            ),
+          ),
+        ),
+      ),
     );
   }
 
   @override
   Widget build(BuildContext context) {
+    final last4 = wallet.ownAcct;
+    final fullAcct = fullAccountNumber(last4);
+
     return ListView(
       padding: const EdgeInsets.fromLTRB(16, 12, 16, 130),
       children: [
+        // الصورة + الاسم (اضغط مطولاً لتعديله) + رقم الحساب (اضغط لنسخه)
         Center(
           child: Column(
             children: [
               Container(
-                width: 84,
-                height: 84,
-                decoration: const BoxDecoration(
-                    shape: BoxShape.circle, color: kGlassStrong),
-                child: const Icon(Icons.person_rounded,
-                    color: Colors.white, size: 50),
-              ),
-              const SizedBox(height: 10),
-              Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Text(
-                    widget.wallet.ownerName.isEmpty
-                        ? 'حسابي'
-                        : widget.wallet.ownerName,
-                    style: ts(22),
-                  ),
-                  const SizedBox(width: 6),
-                  // زر صغير يفعّل/يعطّل علامة التوثيق الزرقاء جنب الاسم
-                  GestureDetector(
-                    onTap: widget.wallet.toggleVerified,
-                    child: Icon(
-                      Icons.verified_rounded,
-                      color: widget.wallet.verified
-                          ? kAccent
-                          : Colors.white24,
-                      size: 20,
-                    ),
-                  ),
-                ],
-              ),
-            ],
-          ),
-        ),
-        const SizedBox(height: 24),
-        Container(
-          padding: const EdgeInsets.all(18),
-          decoration: BoxDecoration(
-            color: kGlass,
-            borderRadius: BorderRadius.circular(22),
-          ),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text('اسم صاحب الحساب', style: ts(16)),
-              const SizedBox(height: 4),
-              Text('يظهر في الإيصالات كاسم المرسل أو المستلم',
-                  style: ts(13, color: Colors.white60)),
-              const SizedBox(height: 12),
-              TextField(
-                controller: c,
-                style: ts(18),
-                keyboardType: TextInputType.name,
-                textInputAction: TextInputAction.done,
-                onSubmitted: (_) => _save(),
-                decoration: InputDecoration(
-                  hintText: 'اكتب الاسم الكامل',
-                  hintStyle: ts(16, color: Colors.white38),
-                  filled: true,
-                  fillColor: kGlass,
-                  contentPadding: const EdgeInsets.symmetric(
-                      horizontal: 16, vertical: 14),
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(16),
-                    borderSide: BorderSide.none,
-                  ),
-                  focusedBorder: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(16),
-                    borderSide: const BorderSide(color: kAccent),
-                  ),
+                width: 120,
+                height: 120,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  color: kAccent.withOpacity(0.18),
                 ),
+                child: Icon(Icons.person_rounded,
+                    color: kAccent.withOpacity(0.9), size: 64),
               ),
               const SizedBox(height: 14),
-              SizedBox(
-                width: double.infinity,
-                child: FilledButton(
-                  style: FilledButton.styleFrom(
-                    backgroundColor: kAccent,
-                    padding: const EdgeInsets.symmetric(vertical: 14),
-                    shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(16)),
-                  ),
-                  onPressed: _save,
-                  child: Text('حفظ', style: ts(16)),
+              GestureDetector(
+                onLongPress: () => _editName(context),
+                child: Text(
+                  wallet.ownerName.isEmpty ? 'حسابي' : wallet.ownerName,
+                  style: ts(20),
+                ),
+              ),
+              const SizedBox(height: 8),
+              GestureDetector(
+                onTap: () => _copyAccountNumber(context, fullAcct),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text(fullAcct,
+                        style: ts(15, color: Colors.white70),
+                        textDirection: TextDirection.ltr),
+                    const SizedBox(width: 8),
+                    const Icon(Icons.copy_rounded,
+                        color: Colors.white54, size: 16),
+                  ],
                 ),
               ),
             ],
           ),
         ),
-        const SizedBox(height: 14),
-        Container(
-          padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 16),
-          decoration: BoxDecoration(
+        const SizedBox(height: 26),
+
+        // معلومات وإعدادات الحساب
+        _menuRow(
+          context,
+          label: 'توثيق الحساب',
+          icon: Icons.verified_rounded,
+          iconColor: wallet.verified ? kAccent : Colors.white38,
+          onTap: () {
+            wallet.toggleVerified();
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: Text(
+                  wallet.verified ? 'تم تفعيل التوثيق' : 'تم إلغاء التوثيق',
+                  style: ts(14),
+                ),
+              ),
+            );
+          },
+        ),
+        _menuRow(
+          context,
+          label: 'معلومات الحساب',
+          icon: Icons.account_circle_outlined,
+          onTap: () => _soon(context),
+        ),
+        _menuRow(
+          context,
+          label: 'إعدادات التحويل',
+          icon: Icons.sync_alt_rounded,
+          onTap: () => _soon(context),
+        ),
+        _menuRow(
+          context,
+          label: 'إعدادات الأمان',
+          icon: Icons.shield_rounded,
+          onTap: () => _soon(context),
+        ),
+        _menuRow(
+          context,
+          label: 'الأجهزة المرتبطة',
+          icon: Icons.devices_rounded,
+          onTap: () => _soon(context),
+        ),
+
+        const SizedBox(height: 6),
+
+        // إعدادات التطبيق
+        Padding(
+          padding: const EdgeInsets.only(bottom: 12),
+          child: Material(
             color: kGlass,
-            borderRadius: BorderRadius.circular(22),
+            borderRadius: BorderRadius.circular(18),
+            child: InkWell(
+              borderRadius: BorderRadius.circular(18),
+              onTap: () => _soon(context),
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 18),
+                child: Row(
+                  children: [
+                    const Icon(Icons.language_rounded, color: kAccent, size: 22),
+                    const SizedBox(width: 10),
+                    Text('اللغة', style: ts(16)),
+                    const Spacer(),
+                    const Icon(Icons.expand_more_rounded,
+                        color: Colors.white54, size: 22),
+                  ],
+                ),
+              ),
+            ),
           ),
-          child: Row(
+        ),
+        Padding(
+          padding: const EdgeInsets.only(bottom: 12),
+          child: Container(
+            padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 10),
+            decoration: BoxDecoration(
+              color: kGlass,
+              borderRadius: BorderRadius.circular(18),
+            ),
+            child: Row(
+              children: [
+                const Icon(Icons.nightlight_round, color: kAccent, size: 22),
+                const SizedBox(width: 10),
+                Text('الثيم', style: ts(16)),
+                const Spacer(),
+                Switch(
+                  value: true,
+                  activeColor: kAccent,
+                  onChanged: (_) => _soon(context),
+                ),
+              ],
+            ),
+          ),
+        ),
+        _menuRow(
+          context,
+          label: 'الشروط والأحكام',
+          icon: Icons.policy_outlined,
+          onTap: () => _soon(context),
+        ),
+        _menuRow(
+          context,
+          label: 'خدمة العملاء',
+          icon: Icons.headset_mic_rounded,
+          onTap: () => _soon(context),
+        ),
+        Padding(
+          padding: const EdgeInsets.only(bottom: 12),
+          child: Container(
+            padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 18),
+            decoration: BoxDecoration(
+              color: kGlass,
+              borderRadius: BorderRadius.circular(18),
+            ),
+            child: Row(
+              children: [
+                const Icon(Icons.hub_rounded, color: kAccent, size: 22),
+                const SizedBox(width: 10),
+                Text('رقم الإصدار', style: ts(16)),
+                const Spacer(),
+                Text('v 1.0.0',
+                    style: ts(14, color: Colors.white54),
+                    textDirection: TextDirection.ltr),
+              ],
+            ),
+          ),
+        ),
+        _menuRow(
+          context,
+          label: 'تسجيل الخروج',
+          icon: Icons.logout_rounded,
+          onTap: () => _logout(context),
+        ),
+
+        const SizedBox(height: 26),
+        Center(
+          child: Column(
             children: [
-              Text('رقم الحساب', style: ts(16)),
-              const Spacer(),
-              Text(maskAcct(widget.wallet.ownAcct),
-                  style: ts(16, color: Colors.white70),
-                  textDirection: TextDirection.ltr),
+              Text('POWERED BY',
+                  style: ts(12, color: Colors.white38).copyWith(
+                      letterSpacing: 2, fontWeight: FontWeight.w500)),
+              const SizedBox(height: 10),
+              Opacity(
+                opacity: 0.35,
+                child: Image.asset(
+                  'assets/images/logo_watermark.png',
+                  width: 90,
+                  height: 90,
+                  fit: BoxFit.contain,
+                ),
+              ),
             ],
           ),
         ),
