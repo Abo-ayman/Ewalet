@@ -23,9 +23,9 @@ const kRed = Color(0xFF6B1F2A);
 const kSendRed = Color(0xFFFF2A6D); // أحمر الحوالات الصادرة (لون محدد صراحة)
 const kTeal = Color(0xFF5B98A4);
 const kPurple = Color(0xFF7D609E);
-// ألوان زري استقبال/إرسال — مقاسة من الصورة المرجعية (من اليسار لليمين)
-const kTealGradient = [Color(0xFF3A4547), Color(0xFF32434C)]; // استقبال
-const kPurpleGradient = [Color(0xFF38233F), Color(0xFF402A44)]; // إرسال
+// ألوان زري استقبال/إرسال — مطابقة للتصميم الجديد (أخضر زمردي غامق / أحمر نبيتي غامق)
+const kTealGradient = [Color(0xFF1E3B36), kGreen]; // استقبال
+const kPurpleGradient = [Color(0xFF2E1119), kRed]; // إرسال
 // لون السهم والنص على كل زر
 const kReceiveInk = Color(0xFFDCE7F0);
 const kSendInk = Color(0xFFF3E6F7);
@@ -37,6 +37,8 @@ const kDialogBg = Color(0xFF1B2A6B);
 // أخضر الحوالات المستقبَلة + أخضر زر المشاركة عبر واتساب
 const kGreen = Color(0xFF428177);
 const kWhatsapp = Color(0xFF25D366);
+// أزرق زر "تصدير" بالإيصال — نفس اللون يُعتمد لأي زر رئيسي مشابه بالتطبيق
+const kExportBlue = Color(0xFF0277BD);
 
 /// مسار صورتك الخاصة للأفاتار (أعلى اليمين).
 /// اتركه فارغاً لاستخدام الأيقونة الافتراضية، وعند الانتهاء ضع مثلاً:
@@ -191,6 +193,8 @@ class WalletState extends ChangeNotifier {
   /// اسم صاحب الحساب (يظهر في الإيصالات) + أول 4 أرقام من رقم حسابه
   String ownerName = '';
   String ownAcct = '';
+  /// علامة التوثيق الزرقاء الصغيرة جنب الاسم (تُفعَّل/تُعطَّل يدوياً)
+  bool verified = false;
 
   double get balance => balances[currency] ?? 0;
 
@@ -212,6 +216,7 @@ class WalletState extends ChangeNotifier {
     currency = p.getString('currency') ?? 'USD';
     hidden = p.getBool('hidden') ?? false;
     ownerName = p.getString('ownerName') ?? '';
+    verified = p.getBool('verified') ?? false;
     var acct = p.getString('ownAcct');
     if (acct == null || acct.isEmpty) {
       acct = '${1000 + Random().nextInt(9000)}';
@@ -230,6 +235,7 @@ class WalletState extends ChangeNotifier {
     await p.setString('currency', currency);
     await p.setBool('hidden', hidden);
     await p.setString('ownerName', ownerName);
+    await p.setBool('verified', verified);
     await p.setString('ownAcct', ownAcct);
   }
 
@@ -261,6 +267,12 @@ class WalletState extends ChangeNotifier {
 
   void toggleHidden() {
     hidden = !hidden;
+    notifyListeners();
+    _save();
+  }
+
+  void toggleVerified() {
+    verified = !verified;
     notifyListeners();
     _save();
   }
@@ -529,7 +541,7 @@ class TopBar extends StatelessWidget {
       padding: const EdgeInsets.fromLTRB(20, 8, 20, 8),
       child: Row(
         children: [
-          const ProfileAvatar(),
+          const GreetingLabel(),
           const Spacer(),
           Stack(
             clipBehavior: Clip.none,
@@ -554,6 +566,27 @@ class TopBar extends StatelessWidget {
           ),
         ],
       ),
+    );
+  }
+}
+
+/// تحية حسب وقت اليوم (صباح/مساء) بدل صورة الأفاتار — كما في التصميم الجديد
+class GreetingLabel extends StatelessWidget {
+  const GreetingLabel({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    final hour = DateTime.now().hour;
+    final isDay = hour >= 5 && hour < 18;
+    final text = isDay ? 'صباح الخير' : 'مساء الخير';
+    final icon = isDay ? Icons.wb_sunny_rounded : Icons.nightlight_round;
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Icon(icon, color: Colors.white70, size: 20),
+        const SizedBox(width: 6),
+        Text(text, style: ts(16)),
+      ],
     );
   }
 }
@@ -591,7 +624,7 @@ class HomePage extends StatelessWidget {
       padding: EdgeInsets.symmetric(horizontal: 18 * k),
       decoration: BoxDecoration(
         color: kGlass,
-        borderRadius: BorderRadius.circular(10), // نفس انحناء شاشة التحويلات
+        borderRadius: BorderRadius.circular(16), // أدوّر، مطابق للتصميم الجديد
       ),
       child: Row(
         children: [
@@ -641,7 +674,7 @@ class HomePage extends StatelessWidget {
                   return Center(
                     child: SizedBox(
                       width: cons.maxWidth * k,
-                      height: side * k * 0.95, // أنحف 5٪ إضافية (سماكة فقط)
+                      height: side * k, // ارتفاع كامل يمنع اختفاء الصف السفلي تحت الإطار
                       child: Row(
                         children: [
                           Expanded(
@@ -659,10 +692,6 @@ class HomePage extends StatelessWidget {
                                 physics: const NeverScrollableScrollPhysics(),
                                 children: [
                                   QuickTile(
-                                      icon: Icons.bookmark_rounded,
-                                      label: 'خدماتي',
-                                      onTap: () => _soon(context)),
-                                  QuickTile(
                                       icon: Icons.layers_rounded,
                                       label: 'مدفوعات',
                                       onTap: () => _soon(context)),
@@ -670,7 +699,14 @@ class HomePage extends StatelessWidget {
                                       icon: Icons.receipt_long_rounded,
                                       label: 'فواتير',
                                       onTap: () => _soon(context)),
-                                  MoreTile(onTap: () => _soon(context)),
+                                  QuickTile(
+                                      icon: Icons.compare_arrows_rounded,
+                                      label: 'حوالات',
+                                      onTap: () => _soon(context)),
+                                  QuickTile(
+                                      icon: Icons.account_balance_rounded,
+                                      label: 'بنوك',
+                                      onTap: () => _soon(context)),
                                 ],
                               ),
                             ),
@@ -713,11 +749,17 @@ class HomePage extends StatelessWidget {
               GestureDetector(
                 onTap: onSeeAll,
                 child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
                     Text('آخر التحويلات', style: ts(20)),
-                    const SizedBox(height: 6),
-                    Container(width: 60, height: 3, color: kAccent),
+                    const SizedBox(height: 8),
+                    Container(
+                      height: 4,
+                      decoration: BoxDecoration(
+                        color: Colors.white24,
+                        borderRadius: BorderRadius.circular(4),
+                      ),
+                    ),
                   ],
                 ),
               ),
@@ -919,11 +961,11 @@ class QuickTile extends StatelessWidget {
               mainAxisSize: MainAxisSize.min,
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                Icon(icon, color: Colors.white, size: 24),
-                const SizedBox(height: 5),
+                Icon(icon, color: Colors.white, size: 26),
+                const SizedBox(height: 6),
                 Text(
                   label,
-                  style: ts(12),
+                  style: ts(13),
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                 ),
@@ -1200,7 +1242,7 @@ class ReceiptPage extends StatefulWidget {
 }
 
 class _ReceiptPageState extends State<ReceiptPage> {
-  static const _exportBlue = Color(0xFF0277BD); // أزرق سماوي داكن
+  static const _exportBlue = kExportBlue; // أزرق سماوي داكن
   static final _shareGray = Colors.grey.shade600; // رمادي زر المشاركة
   final GlobalKey _boundaryKey = GlobalKey();
   final DateTime _createdAt = DateTime.now();
@@ -1565,24 +1607,24 @@ class ReceiptCard extends StatelessWidget {
 // ─────────────────────────────────────────────
 // تدفق الإرسال (اسم المستقبل ← المبلغ ← تم التحويل)
 // ─────────────────────────────────────────────
-class _InputDialog extends StatefulWidget {
-  final String title;
+class _BottomInputSheet extends StatefulWidget {
+  final String? title;
   final String hint;
   final String action;
   final TextInputType keyboard;
 
-  const _InputDialog({
-    required this.title,
+  const _BottomInputSheet({
+    this.title,
     required this.hint,
     required this.action,
     required this.keyboard,
   });
 
   @override
-  State<_InputDialog> createState() => _InputDialogState();
+  State<_BottomInputSheet> createState() => _BottomInputSheetState();
 }
 
-class _InputDialogState extends State<_InputDialog> {
+class _BottomInputSheetState extends State<_BottomInputSheet> {
   final c = TextEditingController();
 
   @override
@@ -1593,39 +1635,249 @@ class _InputDialogState extends State<_InputDialog> {
 
   @override
   Widget build(BuildContext context) {
-    return AlertDialog(
-      backgroundColor: kDialogBg,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
-      title: Text(widget.title, style: ts(20)),
-      content: TextField(
-        controller: c,
-        autofocus: true,
-        keyboardType: widget.keyboard,
-        style: ts(18),
-        onSubmitted: (v) => Navigator.pop(context, v),
-        decoration: InputDecoration(
-          hintText: widget.hint,
-          hintStyle: ts(16, color: Colors.white38),
-          enabledBorder: const UnderlineInputBorder(
-            borderSide: BorderSide(color: Colors.white38),
-          ),
-          focusedBorder: const UnderlineInputBorder(
-            borderSide: BorderSide(color: kAccent),
+    return Padding(
+      // يرفع الشيت فوق لوحة المفاتيح عند فتحها
+      padding: EdgeInsets.only(bottom: MediaQuery.of(context).viewInsets.bottom),
+      child: Container(
+        padding: const EdgeInsets.fromLTRB(20, 14, 20, 24),
+        decoration: const BoxDecoration(
+          color: kDialogBg,
+          borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
+        ),
+        child: SafeArea(
+          top: false,
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              // مقبض صغير أعلى الشيت (شكل شائع لنوافذ الإدخال السفلية)
+              Container(
+                width: 44,
+                height: 4,
+                margin: const EdgeInsets.only(bottom: 18),
+                decoration: BoxDecoration(
+                  color: Colors.white24,
+                  borderRadius: BorderRadius.circular(4),
+                ),
+              ),
+              if (widget.title != null) ...[
+                Text(widget.title!, style: ts(14, color: Colors.white70)),
+                const SizedBox(height: 10),
+              ],
+              TextField(
+                controller: c,
+                autofocus: true,
+                textAlign: TextAlign.center,
+                keyboardType: widget.keyboard,
+                style: ts(20),
+                onSubmitted: (v) => Navigator.pop(context, v),
+                decoration: InputDecoration(
+                  hintText: widget.hint,
+                  hintStyle: ts(20, color: Colors.white54),
+                  border: InputBorder.none,
+                ),
+              ),
+              const SizedBox(height: 20),
+              SizedBox(
+                width: double.infinity,
+                child: FilledButton(
+                  style: FilledButton.styleFrom(
+                    backgroundColor: kExportBlue,
+                    foregroundColor: Colors.white,
+                    padding: const EdgeInsets.symmetric(vertical: 15),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(16),
+                    ),
+                  ),
+                  onPressed: () => Navigator.pop(context, c.text),
+                  child: Text(widget.action, style: ts(18)),
+                ),
+              ),
+            ],
           ),
         ),
       ),
-      actions: [
-        TextButton(
-          onPressed: () => Navigator.pop(context),
-          child: Text('إلغاء', style: ts(16, color: Colors.white70)),
-        ),
-        TextButton(
-          onPressed: () => Navigator.pop(context, c.text),
-          child: Text(widget.action, style: ts(16, color: kAccent)),
-        ),
-      ],
     );
   }
+}
+
+/// يفتح نافذة إدخال بأسفل الشاشة (بدل نافذة منبثقة بالوسط)
+Future<String?> _showBottomInput(
+  BuildContext context, {
+  String? title,
+  required String hint,
+  required String action,
+  required TextInputType keyboard,
+}) {
+  return showModalBottomSheet<String>(
+    context: context,
+    backgroundColor: Colors.transparent,
+    isScrollControlled: true,
+    builder: (_) => _BottomInputSheet(
+      title: title,
+      hint: hint,
+      action: action,
+      keyboard: keyboard,
+    ),
+  );
+}
+
+/// بطاقة "معلومات الحساب" تظهر بعد إدخال الاسم مباشرة، وقبل خطوة المبلغ —
+/// تستعرض اسم الطرف الآخر ورقم حسابه (مع علامة توثيق أحياناً حسب الحساب)
+/// ونوع الحساب وتاريخ إنشائه، مع زري "إضافة" و"إرسال/استقبال".
+class _AccountInfoSheet extends StatelessWidget {
+  final String name;
+  final bool incoming;
+
+  const _AccountInfoSheet({required this.name, required this.incoming});
+
+  Widget _field(String label, Widget value) => Padding(
+        padding: const EdgeInsets.only(top: 18),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(label, style: ts(15, color: Colors.white70)),
+            const SizedBox(height: 8),
+            value,
+          ],
+        ),
+      );
+
+  @override
+  Widget build(BuildContext context) {
+    // بيانات وهمية ثابتة لنفس الاسم (نفس الاسم يعطي نفس النتيجة دائماً)
+    final hash = name.trim().hashCode.abs();
+    final last4 = (1000 + hash % 9000).toString();
+    final isVerified = hash.isEven;
+    final created = DateTime.now().subtract(Duration(days: 20 + hash % 400));
+    final createdStr = '${p2(created.day)}/${p2(created.month)}/${created.year}';
+
+    return Container(
+      padding: const EdgeInsets.fromLTRB(20, 14, 20, 24),
+      decoration: const BoxDecoration(
+        color: kDialogBg,
+        borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
+      ),
+      child: SafeArea(
+        top: false,
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Center(
+              child: Container(
+                width: 44,
+                height: 4,
+                margin: const EdgeInsets.only(bottom: 18),
+                decoration: BoxDecoration(
+                  color: Colors.white24,
+                  borderRadius: BorderRadius.circular(4),
+                ),
+              ),
+            ),
+            Text('معلومات الحساب', style: ts(20)),
+            const SizedBox(height: 18),
+            Center(
+              child: Column(
+                children: [
+                  Container(
+                    width: 74,
+                    height: 74,
+                    decoration: const BoxDecoration(
+                      shape: BoxShape.circle,
+                      color: kGlassStrong,
+                    ),
+                    child: const Icon(Icons.person_rounded,
+                        color: Colors.white, size: 42),
+                  ),
+                  const SizedBox(height: 10),
+                  Text(name, style: ts(19)),
+                ],
+              ),
+            ),
+            _field(
+              'رقم الحساب',
+              Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  if (isVerified) ...[
+                    const Icon(Icons.verified_rounded,
+                        color: kAccent, size: 18),
+                    const SizedBox(width: 6),
+                  ],
+                  Text('**** **** **** $last4',
+                      style: ts(16), textDirection: TextDirection.ltr),
+                ],
+              ),
+            ),
+            _field('نوع الحساب',
+                Text('حساب شخصي', style: ts(15, color: Colors.white70))),
+            _field(
+              'تاريخ إنشاء الحساب',
+              Text(createdStr,
+                  style: ts(15, color: Colors.white70),
+                  textDirection: TextDirection.ltr),
+            ),
+            const SizedBox(height: 24),
+            Row(
+              children: [
+                Expanded(
+                  child: FilledButton(
+                    style: FilledButton.styleFrom(
+                      backgroundColor: kGlassStrong,
+                      foregroundColor: Colors.white,
+                      elevation: 0,
+                      padding: const EdgeInsets.symmetric(vertical: 15),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(16),
+                      ),
+                    ),
+                    onPressed: () {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(
+                            content: Text('تمت الإضافة (نسخة تجريبية)',
+                                style: ts(14))),
+                      );
+                    },
+                    child: Text('إضافة', style: ts(17)),
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: FilledButton(
+                    style: FilledButton.styleFrom(
+                      backgroundColor: kAccent,
+                      foregroundColor: Colors.white,
+                      padding: const EdgeInsets.symmetric(vertical: 15),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(16),
+                      ),
+                    ),
+                    onPressed: () => Navigator.pop(context, true),
+                    child: Text('إرسال', style: ts(17)),
+                  ),
+                ),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+/// يعرض بطاقة معلومات الحساب، ويرجع true إذا ضغط المستخدم زر المتابعة
+Future<bool> _showAccountInfo(
+  BuildContext context, {
+  required String name,
+  required bool incoming,
+}) async {
+  final res = await showModalBottomSheet<bool>(
+    context: context,
+    backgroundColor: Colors.transparent,
+    isScrollControlled: true,
+    builder: (_) => _AccountInfoSheet(name: name, incoming: incoming),
+  );
+  return res ?? false;
 }
 
 Future<void> startSendFlow(
@@ -1647,28 +1899,32 @@ Future<void> startTransferFlow(
 }) async {
   var name = presetName;
   if (name == null) {
-    name = await showDialog<String>(
-      context: context,
-      builder: (_) => _InputDialog(
-        title: incoming ? 'اسم المرسل' : 'اسم المستقبل',
-        hint: incoming ? 'اكتب اسم المرسل' : 'اكتب اسم المستقبل',
-        action: 'التالي',
-        keyboard: TextInputType.name,
-      ),
+    name = await _showBottomInput(
+      context,
+      title: incoming ? 'اسم المرسل' : 'اسم المستقبل',
+      hint: 'أدخل الاسم',
+      action: 'التالي',
+      keyboard: TextInputType.name,
     );
     if (name == null || name.trim().isEmpty) return;
   }
   if (!context.mounted) return;
 
+  // بطاقة معلومات الحساب تظهر مباشرة بعد الاسم، قبل خطوة المبلغ
+  final proceed = await _showAccountInfo(
+    context,
+    name: name.trim(),
+    incoming: incoming,
+  );
+  if (!proceed || !context.mounted) return;
+
   final cur = w.currency;
-  final raw = await showDialog<String>(
-    context: context,
-    builder: (_) => _InputDialog(
-      title: 'المبلغ',
-      hint: cur,
-      action: incoming ? 'استقبال' : 'إرسال',
-      keyboard: const TextInputType.numberWithOptions(decimal: true),
-    ),
+  final raw = await _showBottomInput(
+    context,
+    title: 'المبلغ ($cur)',
+    hint: 'أدخل المبلغ',
+    action: incoming ? 'استقبال' : 'إرسال',
+    keyboard: const TextInputType.numberWithOptions(decimal: true),
   );
   if (raw == null || !context.mounted) return;
 
@@ -1963,11 +2219,28 @@ class _AccountPageState extends State<AccountPage> {
                     color: Colors.white, size: 50),
               ),
               const SizedBox(height: 10),
-              Text(
-                widget.wallet.ownerName.isEmpty
-                    ? 'حسابي'
-                    : widget.wallet.ownerName,
-                style: ts(22),
+              Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(
+                    widget.wallet.ownerName.isEmpty
+                        ? 'حسابي'
+                        : widget.wallet.ownerName,
+                    style: ts(22),
+                  ),
+                  const SizedBox(width: 6),
+                  // زر صغير يفعّل/يعطّل علامة التوثيق الزرقاء جنب الاسم
+                  GestureDetector(
+                    onTap: widget.wallet.toggleVerified,
+                    child: Icon(
+                      Icons.verified_rounded,
+                      color: widget.wallet.verified
+                          ? kAccent
+                          : Colors.white24,
+                      size: 20,
+                    ),
+                  ),
+                ],
               ),
             ],
           ),
