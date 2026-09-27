@@ -37,6 +37,8 @@ const kDialogBg = Color(0xFF1B2A6B);
 // أخضر الحوالات المستقبَلة + أخضر زر المشاركة عبر واتساب
 const kGreen = Color(0xFF428177);
 const kWhatsapp = Color(0xFF25D366);
+// أخضر شريط "تمت العملية بنجاح" بعد إتمام التحويل
+const kSuccessGreen = Color(0xFF2FA860);
 // أزرق زر "تصدير" بالإيصال — نفس اللون يُعتمد لأي زر رئيسي مشابه بالتطبيق
 const kExportBlue = Color(0xFF0277BD);
 
@@ -149,6 +151,7 @@ class Transfer {
   final String at; // ISO 8601
   final bool incoming; // true = حوالة مستقبَلة
   final String acct; // أول 4 أرقام من حساب الطرف الآخر (للإيصال)
+  final String note; // ملاحظة اختيارية أُدخلت عند التحويل
 
   Transfer({
     required this.id,
@@ -158,6 +161,7 @@ class Transfer {
     required this.at,
     this.incoming = false,
     this.acct = '',
+    this.note = '',
   });
 
   String get otherAcct => acct.isNotEmpty ? acct : acctFromId(id);
@@ -170,6 +174,7 @@ class Transfer {
         'at': at,
         'incoming': incoming,
         'acct': acct,
+        'note': note,
       };
 
   factory Transfer.fromJson(Map<String, dynamic> j) => Transfer(
@@ -180,6 +185,7 @@ class Transfer {
         at: j['at'] as String,
         incoming: j['incoming'] == true,
         acct: (j['acct'] as String?) ?? '',
+        note: (j['note'] as String?) ?? '',
       );
 }
 
@@ -283,7 +289,8 @@ class WalletState extends ChangeNotifier {
     _save();
   }
 
-  Transfer _make(String name, double amount, {required bool incoming}) =>
+  Transfer _make(String name, double amount,
+          {required bool incoming, required String currency, String note = ''}) =>
       Transfer(
         id: '#44${1000000 + Random().nextInt(9000000)}',
         name: name,
@@ -292,14 +299,18 @@ class WalletState extends ChangeNotifier {
         at: DateTime.now().toIso8601String(),
         incoming: incoming,
         acct: '${1000 + Random().nextInt(9000)}',
+        note: note,
       );
 
-  /// يرجع نص الخطأ إن فشل، أو null عند النجاح
-  String? send(String name, double amount) {
+  /// يرجع نص الخطأ إن فشل، أو null عند النجاح.
+  /// [currency] اختياري: عملة هذه العملية تحديداً (افتراضياً عملة الشاشة الحالية).
+  String? send(String name, double amount, {String? currency, String note = ''}) {
+    final cur = currency ?? this.currency;
+    final bal = balances[cur] ?? 0;
     if (amount.isNaN || amount <= 0) return 'أدخل مبلغاً صحيحاً';
-    if (amount > balance) return 'الرصيد غير كافٍ';
-    balances[currency] = balance - amount;
-    transfers.insert(0, _make(name, amount, incoming: false));
+    if (amount > bal) return 'الرصيد غير كافٍ';
+    balances[cur] = bal - amount;
+    transfers.insert(0, _make(name, amount, incoming: false, currency: cur, note: note));
     if ((balances['USD'] ?? 0) <= kUsdResetThreshold) {
       balances['USD'] = kInitialBalances['USD']!;
     }
@@ -309,10 +320,11 @@ class WalletState extends ChangeNotifier {
   }
 
   /// استقبال حوالة: يزيد الرصيد ويضيف حوالة مستقبَلة (خضراء) في القائمة
-  String? receive(String name, double amount) {
+  String? receive(String name, double amount, {String? currency, String note = ''}) {
+    final cur = currency ?? this.currency;
     if (amount.isNaN || amount <= 0) return 'أدخل مبلغاً صحيحاً';
-    balances[currency] = balance + amount;
-    transfers.insert(0, _make(name, amount, incoming: true));
+    balances[cur] = (balances[cur] ?? 0) + amount;
+    transfers.insert(0, _make(name, amount, incoming: true, currency: cur, note: note));
     notifyListeners();
     _save();
     return null;
@@ -1566,7 +1578,13 @@ class ReceiptCard extends StatelessWidget {
                       amountLtr ? TextDirection.ltr : TextDirection.rtl,
                 ),
               ),
-              _row('الملاحظة:', const SizedBox.shrink()),
+              _row(
+                'الملاحظة:',
+                Text(
+                  t.note.trim().isEmpty ? '—' : t.note.trim(),
+                  style: _s(15, FontWeight.w500),
+                ),
+              ),
               const SizedBox(height: 10),
               Container(height: 4, color: _bar),
               const SizedBox(height: 10),
@@ -1698,6 +1716,259 @@ class _BottomInputSheetState extends State<_BottomInputSheet> {
       ),
     );
   }
+}
+
+/// نتيجة شيت "تحويل أموال" (المبلغ + الملاحظة + العملة المختارة داخل الشيت)
+class _TransferResult {
+  final double amount;
+  final String note;
+  final String currency;
+  _TransferResult(this.amount, this.note, this.currency);
+}
+
+/// شيت "تحويل أموال" — يظهر بعد بطاقة معلومات الحساب مباشرة: يستعرض الطرف
+/// الآخر (اسم + رقم حساب مقنّع)، ثم اختيار العملة، ثم المبلغ المحوَّل،
+/// ثم ملاحظة اختيارية، وأخيراً زر إرسال/استقبال.
+class _TransferAmountSheet extends StatefulWidget {
+  final String name;
+  final bool incoming;
+  final String initialCurrency;
+
+  const _TransferAmountSheet({
+    required this.name,
+    required this.incoming,
+    required this.initialCurrency,
+  });
+
+  @override
+  State<_TransferAmountSheet> createState() => _TransferAmountSheetState();
+}
+
+class _TransferAmountSheetState extends State<_TransferAmountSheet> {
+  final amountCtrl = TextEditingController();
+  final noteCtrl = TextEditingController();
+  late String currency = widget.initialCurrency;
+
+  @override
+  void dispose() {
+    amountCtrl.dispose();
+    noteCtrl.dispose();
+    super.dispose();
+  }
+
+  Widget _currencyChip(String code, String label) {
+    final sel = currency == code;
+    return Expanded(
+      child: GestureDetector(
+        onTap: () => setState(() => currency = code),
+        child: Container(
+          margin: const EdgeInsets.symmetric(horizontal: 4),
+          padding: const EdgeInsets.symmetric(vertical: 13),
+          decoration: BoxDecoration(
+            color: sel ? kAccent : kGlassStrong,
+            borderRadius: BorderRadius.circular(14),
+          ),
+          alignment: Alignment.center,
+          child: Text(label, style: ts(16)),
+        ),
+      ),
+    );
+  }
+
+  Widget _box(String hint, TextEditingController c, {TextInputType? kb}) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.symmetric(horizontal: 16),
+      decoration: BoxDecoration(
+        color: kGlassStrong,
+        borderRadius: BorderRadius.circular(14),
+      ),
+      child: TextField(
+        controller: c,
+        keyboardType: kb,
+        style: ts(16),
+        decoration: InputDecoration(
+          hintText: hint,
+          hintStyle: ts(16, color: Colors.white54),
+          border: InputBorder.none,
+        ),
+      ),
+    );
+  }
+
+  void _submit() {
+    final amount = double.tryParse(toEnglishDigits(amountCtrl.text.trim())) ?? 0;
+    Navigator.pop(
+      context,
+      _TransferResult(amount, noteCtrl.text.trim(), currency),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    // بيانات وهمية ثابتة لنفس الاسم (نفس المنطق المستخدم في بطاقة معلومات الحساب)
+    final hash = widget.name.trim().hashCode.abs();
+    final last4 = (1000 + hash % 9000).toString();
+    final isVerified = hash.isEven;
+
+    return Padding(
+      padding: EdgeInsets.only(bottom: MediaQuery.of(context).viewInsets.bottom),
+      child: Container(
+        padding: const EdgeInsets.fromLTRB(20, 14, 20, 24),
+        decoration: const BoxDecoration(
+          color: kDialogBg,
+          borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
+        ),
+        child: SafeArea(
+          top: false,
+          child: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Center(
+                  child: Container(
+                    width: 44,
+                    height: 4,
+                    margin: const EdgeInsets.only(bottom: 18),
+                    decoration: BoxDecoration(
+                      color: Colors.white24,
+                      borderRadius: BorderRadius.circular(4),
+                    ),
+                  ),
+                ),
+                Center(
+                  child: Text(
+                    widget.incoming ? 'استقبال أموال' : 'تحويل أموال',
+                    style: ts(20),
+                  ),
+                ),
+                const SizedBox(height: 18),
+                Center(
+                  child: Column(
+                    children: [
+                      Container(
+                        width: 84,
+                        height: 84,
+                        decoration: const BoxDecoration(
+                          shape: BoxShape.circle,
+                          color: kGlassStrong,
+                        ),
+                        child: const Icon(Icons.person_rounded,
+                            color: Colors.white, size: 46),
+                      ),
+                      const SizedBox(height: 10),
+                      Text(widget.name, style: ts(19)),
+                      const SizedBox(height: 8),
+                      Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          if (isVerified) ...[
+                            const Icon(Icons.verified_rounded,
+                                color: kAccent, size: 16),
+                            const SizedBox(width: 6),
+                          ],
+                          Text('**** **** **** $last4',
+                              style: ts(15, color: Colors.white70),
+                              textDirection: TextDirection.ltr),
+                        ],
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 22),
+                Row(
+                  children: [
+                    _currencyChip('SYP', 'سوري'),
+                    _currencyChip('USD', 'دولار'),
+                    _currencyChip('EUR', 'يورو'),
+                  ],
+                ),
+                const SizedBox(height: 22),
+                Text('المبلغ المحول', style: ts(15, color: Colors.white70)),
+                const SizedBox(height: 8),
+                _box(
+                  'أدخل المبلغ',
+                  amountCtrl,
+                  kb: const TextInputType.numberWithOptions(decimal: true),
+                ),
+                const SizedBox(height: 18),
+                Text('ملاحظة', style: ts(15, color: Colors.white70)),
+                const SizedBox(height: 8),
+                _box('اكتب ملاحظة', noteCtrl),
+                const SizedBox(height: 22),
+                SizedBox(
+                  width: double.infinity,
+                  child: FilledButton(
+                    style: FilledButton.styleFrom(
+                      backgroundColor: kAccent,
+                      foregroundColor: Colors.white,
+                      padding: const EdgeInsets.symmetric(vertical: 15),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(16),
+                      ),
+                    ),
+                    onPressed: _submit,
+                    child: Text(widget.incoming ? 'استقبال' : 'إرسال',
+                        style: ts(18)),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// يفتح شيت "تحويل أموال" ويرجع النتيجة (المبلغ + الملاحظة + العملة)، أو null عند الإلغاء
+Future<_TransferResult?> _showTransferAmountSheet(
+  BuildContext context, {
+  required String name,
+  required bool incoming,
+  required String initialCurrency,
+}) {
+  return showModalBottomSheet<_TransferResult>(
+    context: context,
+    backgroundColor: Colors.transparent,
+    isScrollControlled: true,
+    builder: (_) => _TransferAmountSheet(
+      name: name,
+      incoming: incoming,
+      initialCurrency: initialCurrency,
+    ),
+  );
+}
+
+/// يعرض شريط "تمت العملية بنجاح" الأخضر بنفس تصميم الإشعار المرجعي —
+/// يطفو أعلى الشريط السفلي وزر QR بدل نافذة منتصف الشاشة.
+void _showSuccessBanner(BuildContext context, {required bool incoming}) {
+  final messenger = ScaffoldMessenger.of(context);
+  messenger.hideCurrentSnackBar();
+  messenger.showSnackBar(
+    SnackBar(
+      backgroundColor: kSuccessGreen,
+      behavior: SnackBarBehavior.floating,
+      elevation: 0,
+      duration: const Duration(seconds: 2),
+      margin: const EdgeInsets.fromLTRB(20, 0, 20, 90),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+      padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 14),
+      content: Row(
+        children: [
+          Expanded(
+            child: Text(
+              incoming ? 'تم الاستقبال بنجاح' : 'تمت العملية بنجاح',
+              style: ts(15),
+            ),
+          ),
+          const SizedBox(width: 10),
+          const Icon(Icons.check_circle_rounded, color: Colors.white, size: 22),
+        ],
+      ),
+    ),
+  );
 }
 
 /// يفتح نافذة إدخال بأسفل الشاشة (بدل نافذة منبثقة بالوسط)
@@ -1918,20 +2189,18 @@ Future<void> startTransferFlow(
   );
   if (!proceed || !context.mounted) return;
 
-  final cur = w.currency;
-  final raw = await _showBottomInput(
+  final result = await _showTransferAmountSheet(
     context,
-    title: 'المبلغ ($cur)',
-    hint: 'أدخل المبلغ',
-    action: incoming ? 'استقبال' : 'إرسال',
-    keyboard: const TextInputType.numberWithOptions(decimal: true),
+    name: name.trim(),
+    incoming: incoming,
+    initialCurrency: w.currency,
   );
-  if (raw == null || !context.mounted) return;
+  if (result == null || !context.mounted) return;
 
-  final amount = double.tryParse(toEnglishDigits(raw.trim())) ?? 0;
+  final amount = result.amount;
   final err = incoming
-      ? w.receive(name.trim(), amount)
-      : w.send(name.trim(), amount);
+      ? w.receive(name.trim(), amount, currency: result.currency, note: result.note)
+      : w.send(name.trim(), amount, currency: result.currency, note: result.note);
   if (err != null) {
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(content: Text(err, style: ts(14))),
@@ -1939,39 +2208,7 @@ Future<void> startTransferFlow(
     return;
   }
 
-  await showDialog<void>(
-    context: context,
-    builder: (ctx) => AlertDialog(
-      backgroundColor: kDialogBg,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
-      content: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          CircleAvatar(
-            radius: 32,
-            backgroundColor: incoming ? kGreen : kTeal,
-            child: const Icon(Icons.check_rounded, size: 42, color: Colors.white),
-          ),
-          const SizedBox(height: 14),
-          Text(incoming ? 'تم الاستقبال' : 'تم التحويل', style: ts(22)),
-          const SizedBox(height: 6),
-          Text(
-            incoming
-                ? '${amountLabel(amount, cur)} من ${name!.trim()}'
-                : '${amountLabel(amount, cur)} إلى ${name!.trim()}',
-            style: ts(15, color: Colors.white70),
-            textAlign: TextAlign.center,
-          ),
-        ],
-      ),
-      actions: [
-        TextButton(
-          onPressed: () => Navigator.pop(ctx),
-          child: Text('حسناً', style: ts(16, color: kAccent)),
-        ),
-      ],
-    ),
-  );
+  _showSuccessBanner(context, incoming: incoming);
 }
 
 // ─────────────────────────────────────────────
