@@ -33,10 +33,16 @@ jobs:
         run: |
           cp lib/main.dart /tmp/main.dart
           cp pubspec.yaml /tmp/pubspec.yaml
-          flutter create --platforms=android --project-name wallet_app --org com.example .
+          flutter create --platforms=android --project-name sham_cash --org com.example .
           cp /tmp/main.dart lib/main.dart
           cp /tmp/pubspec.yaml pubspec.yaml
           rm -rf test
+
+      # اسم التطبيق الظاهر تحت الأيقونة على الهاتف
+      - name: Set app label
+        run: |
+          sed -i 's#android:label="[^"]*"#android:label="Sham Cash"#' android/app/src/main/AndroidManifest.xml
+          grep -n "android:label" android/app/src/main/AndroidManifest.xml
 
       # تطبيق أيقونة التطبيق المخصصة (الشعار المرفق بالمشروع)
       - name: Set custom app icon
@@ -69,7 +75,7 @@ jobs:
       - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
-          name: wallet-apk
+          name: sham-cash-apk
           path: build/app/outputs/flutter-apk/app-release.apk
 
       # طريقة 2: Release (رابط مباشر للـ APK بدون zip)
