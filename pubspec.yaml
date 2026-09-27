@@ -1,4 +1,4 @@
-name: Sham Cash
+name: sham_cash
 description: Experimental Flutter wallet (mock data only).
 publish_to: 'none'
 version: 1.0.0+1
