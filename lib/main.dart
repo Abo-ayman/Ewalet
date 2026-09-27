@@ -24,8 +24,8 @@ const kSendRed = Color(0xFFFF2A6D); // أحمر الحوالات الصادرة 
 const kTeal = Color(0xFF5B98A4);
 const kPurple = Color(0xFF7D609E);
 // ألوان زري استقبال/إرسال — نسخة هادئة (نفس عائلة الألوان، بتباين وتشبّع أقل)
-const kTealGradient = [Color(0xFF23342F), Color(0xFF3C544D)]; // استقبال
-const kPurpleGradient = [Color(0xFF2A1E23), Color(0xFF43303A)]; // إرسال
+const kTealGradient = [Color(0xFF334145), Color(0xFF334145)]; // استقبال
+const kPurpleGradient = [Color(0xFF412C3B), Color(0xFF412C3B)]; // إرسال
 // لون السهم والنص على كل زر
 const kReceiveInk = Color(0xFFDCE7F0);
 const kSendInk = Color(0xFFF3E6F7);
@@ -370,7 +370,7 @@ class WalletApp extends StatelessWidget {
   Widget build(BuildContext context) {
     return MaterialApp(
       debugShowCheckedModeBanner: false,
-      title: 'المحفظة',
+      title: 'Sham Cash',
       theme: ThemeData(
         useMaterial3: true,
         brightness: Brightness.dark,
@@ -2290,13 +2290,13 @@ class _AccountInfoSheet extends StatelessWidget {
               Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  if (isVerified) ...[
-                    const Icon(Icons.verified_rounded,
-                        color: kAccent, size: 18),
-                    const SizedBox(width: 6),
-                  ],
                   Text('**** **** **** $last4',
                       style: ts(16), textDirection: TextDirection.ltr),
+                  if (isVerified) ...[
+                    const SizedBox(width: 6),
+                    const Icon(Icons.verified_rounded,
+                        color: kAccent, size: 18),
+                  ],
                 ],
               ),
             ),
