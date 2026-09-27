@@ -103,6 +103,15 @@ String amountLabel(double v, String c) {
   }
 }
 
+/// يحسب العرض الفعلي لنص بخط/حجم معيّن (يُستخدم لجعل عناصر أخرى بنفس طول النص)
+double textWidth(String text, TextStyle style) {
+  final tp = TextPainter(
+    text: TextSpan(text: text, style: style),
+    textDirection: TextDirection.rtl,
+  )..layout();
+  return tp.width;
+}
+
 String p2(int n) => n.toString().padLeft(2, '0');
 
 String fmtDate(String iso) {
@@ -582,9 +591,25 @@ class TopBar extends StatelessWidget {
   }
 }
 
-/// تحية حسب وقت اليوم (صباح/مساء) بدل صورة الأفاتار — كما في التصميم الجديد
-class GreetingLabel extends StatelessWidget {
+/// تحية حسب وقت اليوم (صباح/مساء) تظهر بضع ثوانٍ، ثم تُستبدل بتلاشٍ ناعم
+/// بأيقونة التطبيق (نفس شعار شاشة البداية) — كما في التصميم الجديد
+class GreetingLabel extends StatefulWidget {
   const GreetingLabel({super.key});
+
+  @override
+  State<GreetingLabel> createState() => _GreetingLabelState();
+}
+
+class _GreetingLabelState extends State<GreetingLabel> {
+  bool _showGreeting = true;
+
+  @override
+  void initState() {
+    super.initState();
+    Future.delayed(const Duration(seconds: 3), () {
+      if (mounted) setState(() => _showGreeting = false);
+    });
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -592,13 +617,33 @@ class GreetingLabel extends StatelessWidget {
     final isDay = hour >= 5 && hour < 18;
     final text = isDay ? 'صباح الخير' : 'مساء الخير';
     final icon = isDay ? Icons.wb_sunny_rounded : Icons.nightlight_round;
-    return Row(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        Icon(icon, color: Colors.white70, size: 20),
-        const SizedBox(width: 6),
-        Text(text, style: ts(16)),
-      ],
+
+    return AnimatedSwitcher(
+      duration: const Duration(milliseconds: 500),
+      switchInCurve: Curves.easeOut,
+      switchOutCurve: Curves.easeIn,
+      child: _showGreeting
+          ? Row(
+              key: const ValueKey('greeting'),
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(icon, color: Colors.white70, size: 20),
+                const SizedBox(width: 6),
+                Text(text, style: ts(16)),
+              ],
+            )
+          : SizedBox(
+              key: const ValueKey('logo'),
+              height: 28,
+              child: kAvatarAsset.isNotEmpty
+                  ? Image.asset(
+                      kAvatarAsset,
+                      fit: BoxFit.contain,
+                      filterQuality: FilterQuality.high,
+                    )
+                  : const Icon(Icons.account_balance_wallet_rounded,
+                      color: Colors.white, size: 26),
+            ),
     );
   }
 }
@@ -757,23 +802,38 @@ class HomePage extends StatelessWidget {
               ),
               const SizedBox(height: 26),
 
-              // آخر التحويلات
-              GestureDetector(
-                onTap: onSeeAll,
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: [
-                    Text('آخر التحويلات', style: ts(20)),
-                    const SizedBox(height: 8),
-                    Container(
-                      height: 4,
-                      decoration: BoxDecoration(
-                        color: Colors.white24,
-                        borderRadius: BorderRadius.circular(4),
-                      ),
+              // آخر التحويلات — الخط تحتها بنفس طول الكلمة تماماً، وأطرافه تتلاشى بتدرج
+              Builder(
+                builder: (context) {
+                  const titleText = 'آخر التحويلات';
+                  final titleStyle = ts(20);
+                  final underlineWidth = textWidth(titleText, titleStyle);
+                  return GestureDetector(
+                    onTap: onSeeAll,
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(titleText, style: titleStyle),
+                        const SizedBox(height: 8),
+                        Container(
+                          width: underlineWidth,
+                          height: 4,
+                          decoration: BoxDecoration(
+                            gradient: LinearGradient(
+                              colors: [
+                                Colors.white24.withOpacity(0),
+                                Colors.white24,
+                                Colors.white24,
+                                Colors.white24.withOpacity(0),
+                              ],
+                              stops: const [0.0, 0.2, 0.8, 1.0],
+                            ),
+                          ),
+                        ),
+                      ],
                     ),
-                  ],
-                ),
+                  );
+                },
               ),
               const SizedBox(height: 14),
             ],
@@ -1625,17 +1685,26 @@ class ReceiptCard extends StatelessWidget {
 // ─────────────────────────────────────────────
 // تدفق الإرسال (اسم المستقبل ← المبلغ ← تم التحويل)
 // ─────────────────────────────────────────────
+/// نتيجة شيت إدخال الاسم: الاسم، وخيار علامة التوثيق (فقط عند تفعيله في الإرسال)
+class _NameInputResult {
+  final String name;
+  final bool? verified; // null = لا ينطبق (مثال: خطوة اسم المرسل عند الاستقبال)
+  _NameInputResult(this.name, this.verified);
+}
+
 class _BottomInputSheet extends StatefulWidget {
   final String? title;
   final String hint;
   final String action;
   final TextInputType keyboard;
+  final bool showVerifiedOption;
 
   const _BottomInputSheet({
     this.title,
     required this.hint,
     required this.action,
     required this.keyboard,
+    this.showVerifiedOption = false,
   });
 
   @override
@@ -1644,11 +1713,19 @@ class _BottomInputSheet extends StatefulWidget {
 
 class _BottomInputSheetState extends State<_BottomInputSheet> {
   final c = TextEditingController();
+  bool verified = false;
 
   @override
   void dispose() {
     c.dispose();
     super.dispose();
+  }
+
+  void _submit(String value) {
+    Navigator.pop(
+      context,
+      _NameInputResult(value, widget.showVerifiedOption ? verified : null),
+    );
   }
 
   @override
@@ -1687,13 +1764,46 @@ class _BottomInputSheetState extends State<_BottomInputSheet> {
                 textAlign: TextAlign.center,
                 keyboardType: widget.keyboard,
                 style: ts(20),
-                onSubmitted: (v) => Navigator.pop(context, v),
+                onSubmitted: _submit,
                 decoration: InputDecoration(
                   hintText: widget.hint,
                   hintStyle: ts(20, color: Colors.white54),
                   border: InputBorder.none,
                 ),
               ),
+              if (widget.showVerifiedOption) ...[
+                const SizedBox(height: 6),
+                GestureDetector(
+                  onTap: () => setState(() => verified = !verified),
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 14, vertical: 12),
+                    decoration: BoxDecoration(
+                      color: kGlassStrong,
+                      borderRadius: BorderRadius.circular(14),
+                    ),
+                    child: Row(
+                      children: [
+                        Icon(
+                          Icons.verified_rounded,
+                          color: verified ? kAccent : Colors.white24,
+                          size: 22,
+                        ),
+                        const SizedBox(width: 10),
+                        Expanded(
+                          child: Text('إضافة علامة التوثيق',
+                              style: ts(15)),
+                        ),
+                        Switch(
+                          value: verified,
+                          activeColor: kAccent,
+                          onChanged: (v) => setState(() => verified = v),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ],
               const SizedBox(height: 20),
               SizedBox(
                 width: double.infinity,
@@ -1706,7 +1816,7 @@ class _BottomInputSheetState extends State<_BottomInputSheet> {
                       borderRadius: BorderRadius.circular(16),
                     ),
                   ),
-                  onPressed: () => Navigator.pop(context, c.text),
+                  onPressed: () => _submit(c.text),
                   child: Text(widget.action, style: ts(18)),
                 ),
               ),
@@ -1733,11 +1843,13 @@ class _TransferAmountSheet extends StatefulWidget {
   final String name;
   final bool incoming;
   final String initialCurrency;
+  final bool? verifiedOverride;
 
   const _TransferAmountSheet({
     required this.name,
     required this.incoming,
     required this.initialCurrency,
+    this.verifiedOverride,
   });
 
   @override
@@ -1809,7 +1921,7 @@ class _TransferAmountSheetState extends State<_TransferAmountSheet> {
     // بيانات وهمية ثابتة لنفس الاسم (نفس المنطق المستخدم في بطاقة معلومات الحساب)
     final hash = widget.name.trim().hashCode.abs();
     final last4 = (1000 + hash % 9000).toString();
-    final isVerified = hash.isEven;
+    final isVerified = widget.verifiedOverride ?? hash.isEven;
 
     return Padding(
       padding: EdgeInsets.only(bottom: MediaQuery.of(context).viewInsets.bottom),
@@ -1928,6 +2040,7 @@ Future<_TransferResult?> _showTransferAmountSheet(
   required String name,
   required bool incoming,
   required String initialCurrency,
+  bool? verifiedOverride,
 }) {
   return showModalBottomSheet<_TransferResult>(
     context: context,
@@ -1937,6 +2050,7 @@ Future<_TransferResult?> _showTransferAmountSheet(
       name: name,
       incoming: incoming,
       initialCurrency: initialCurrency,
+      verifiedOverride: verifiedOverride,
     ),
   );
 }
@@ -1972,14 +2086,15 @@ void _showSuccessBanner(BuildContext context, {required bool incoming}) {
 }
 
 /// يفتح نافذة إدخال بأسفل الشاشة (بدل نافذة منبثقة بالوسط)
-Future<String?> _showBottomInput(
+Future<_NameInputResult?> _showBottomInput(
   BuildContext context, {
   String? title,
   required String hint,
   required String action,
   required TextInputType keyboard,
+  bool showVerifiedOption = false,
 }) {
-  return showModalBottomSheet<String>(
+  return showModalBottomSheet<_NameInputResult>(
     context: context,
     backgroundColor: Colors.transparent,
     isScrollControlled: true,
@@ -1988,6 +2103,7 @@ Future<String?> _showBottomInput(
       hint: hint,
       action: action,
       keyboard: keyboard,
+      showVerifiedOption: showVerifiedOption,
     ),
   );
 }
@@ -1998,8 +2114,13 @@ Future<String?> _showBottomInput(
 class _AccountInfoSheet extends StatelessWidget {
   final String name;
   final bool incoming;
+  final bool? verifiedOverride;
 
-  const _AccountInfoSheet({required this.name, required this.incoming});
+  const _AccountInfoSheet({
+    required this.name,
+    required this.incoming,
+    this.verifiedOverride,
+  });
 
   Widget _field(String label, Widget value) => Padding(
         padding: const EdgeInsets.only(top: 18),
@@ -2018,7 +2139,7 @@ class _AccountInfoSheet extends StatelessWidget {
     // بيانات وهمية ثابتة لنفس الاسم (نفس الاسم يعطي نفس النتيجة دائماً)
     final hash = name.trim().hashCode.abs();
     final last4 = (1000 + hash % 9000).toString();
-    final isVerified = hash.isEven;
+    final isVerified = verifiedOverride ?? hash.isEven;
     final created = DateTime.now().subtract(Duration(days: 20 + hash % 400));
     final createdStr = '${p2(created.day)}/${p2(created.month)}/${created.year}';
 
@@ -2141,12 +2262,17 @@ Future<bool> _showAccountInfo(
   BuildContext context, {
   required String name,
   required bool incoming,
+  bool? verifiedOverride,
 }) async {
   final res = await showModalBottomSheet<bool>(
     context: context,
     backgroundColor: Colors.transparent,
     isScrollControlled: true,
-    builder: (_) => _AccountInfoSheet(name: name, incoming: incoming),
+    builder: (_) => _AccountInfoSheet(
+      name: name,
+      incoming: incoming,
+      verifiedOverride: verifiedOverride,
+    ),
   );
   return res ?? false;
 }
@@ -2169,15 +2295,20 @@ Future<void> startTransferFlow(
   String? presetName,
 }) async {
   var name = presetName;
+  bool? verifiedOverride;
   if (name == null) {
-    name = await _showBottomInput(
+    // خيار "إضافة علامة التوثيق" يظهر فقط عند الإرسال (تحديد كيف يظهر المستلم لديه)
+    final res = await _showBottomInput(
       context,
       title: incoming ? 'اسم المرسل' : 'اسم المستقبل',
       hint: 'أدخل الاسم',
       action: 'التالي',
       keyboard: TextInputType.name,
+      showVerifiedOption: !incoming,
     );
-    if (name == null || name.trim().isEmpty) return;
+    if (res == null || res.name.trim().isEmpty) return;
+    name = res.name;
+    verifiedOverride = res.verified;
   }
   if (!context.mounted) return;
 
@@ -2186,6 +2317,7 @@ Future<void> startTransferFlow(
     context,
     name: name.trim(),
     incoming: incoming,
+    verifiedOverride: verifiedOverride,
   );
   if (!proceed || !context.mounted) return;
 
@@ -2194,6 +2326,7 @@ Future<void> startTransferFlow(
     name: name.trim(),
     incoming: incoming,
     initialCurrency: w.currency,
+    verifiedOverride: verifiedOverride,
   );
   if (result == null || !context.mounted) return;
 
